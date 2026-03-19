@@ -156,7 +156,7 @@
     /* Preset + Alle Buttons */
     .cal-btns { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 
-    #cal-reset {
+    #heute-btn {
       background: rgba(0,212,255,.12);
       border: 1px solid var(--teal);
       color: var(--teal);
@@ -166,8 +166,10 @@
       font-size: 15px;
       font-weight: 700;
       letter-spacing: .3px;
+      white-space: nowrap;
     }
-    #cal-reset:hover { background: rgba(0,212,255,.22); }
+    #heute-btn:hover  { background: rgba(0,212,255,.22); }
+    #heute-btn.active { background: rgba(0,212,255,.28); }
 
     /* Favoriten */
     #fav-bar {
@@ -407,7 +409,7 @@
         <div id="cal-range"></div>
       </div>
       <div class="cal-btns">
-        <button id="cal-reset" title="Gesamten Zeitraum anzeigen">↺ Alle</button>
+        <button id="heute-btn" title="Letzte & nächste 12 Stunden">⏱ Heute ±12h</button>
         <button class="preset-btn active" data-days="10">10 T</button>
         <button class="preset-btn" data-days="14">14 T</button>
         <button class="preset-btn" data-days="30">30 T</button>
@@ -700,13 +702,15 @@ function renderCalendar() {
 }
 
 function clickDay(date) {
+  // Klick auf Kalender → tageweise, ±12h-Modus aufheben
+  $('heute-btn').classList.remove('active');
   if (!rng.sel) {
     rng = { start: date, end: date, sel: true };
     renderCalendar();
   } else {
     const s = rng.start;
     const [a, b] = date < s ? [date, s] : [s, date];
-    rng = { start: a, end: b, sel: false };
+    rng = { start: a, end: b, sel: false }; // kein startDT/endDT → tageweise
 
     // Nachladebedarf prüfen: ist start-Datum älter als geladene Daten?
     if (a < data.daily.time[0]) {
@@ -725,14 +729,32 @@ function updateRngInfo() {
     : `${rng.start}  →  ${rng.end}`;
 }
 
-// Alle-Button
-$('cal-reset').addEventListener('click', () => {
+// Heute ±12h Button
+function toLocalDT(d) {
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:00`;
+}
+function toLocalDate(d) {
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+$('heute-btn').addEventListener('click', () => {
   if (!data) return;
-  rng = { start: data.daily.time[0], end: data.daily.time[data.daily.time.length-1], sel: false };
+  const now    = new Date();
+  const minus12 = new Date(now.getTime() - 12 * 3600 * 1000);
+  const plus12  = new Date(now.getTime() + 12 * 3600 * 1000);
+  rng = {
+    start:   toLocalDate(minus12),
+    end:     toLocalDate(plus12),
+    startDT: toLocalDT(minus12),
+    endDT:   toLocalDT(plus12),
+    sel: false
+  };
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  $('heute-btn').classList.add('active');
   renderCalendar();
   renderChart();
-  // Preset-Buttons: keiner aktiv
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
 });
 
 // Preset-Buttons
@@ -740,8 +762,9 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const days = parseInt(btn.dataset.days);
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    $('heute-btn').classList.remove('active');
     btn.classList.add('active');
-    loadWeather(days - 5); // past_days = gewählte Tage minus 5 Prognose
+    loadWeather(days - 5);
   });
 });
 
@@ -750,7 +773,11 @@ function getHourly() {
   const labels=[], temp=[], precip=[], wind=[], hum=[], sm0=[], sm1=[];
   data.hourly.time.forEach((t,i) => {
     const d = t.split('T')[0];
-    if (d >= rng.start && d <= rng.end) {
+    // Stündliche Filterung wenn startDT/endDT gesetzt (z.B. Heute ±12h), sonst tageweise
+    const inRange = rng.startDT
+      ? (t >= rng.startDT && t <= rng.endDT)
+      : (d >= rng.start  && d <= rng.end);
+    if (inRange) {
       labels.push(`${d.slice(5).replace('-','.')} ${t.slice(11,16)}`);
       temp.push(data.hourly.temperature_2m[i]);
       precip.push(data.hourly.precipitation[i]);
