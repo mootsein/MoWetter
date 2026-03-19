@@ -621,23 +621,27 @@ function updateTiles() {
   html('t-sm',  u(sm0 != null ? (sm0*100).toFixed(1) : null, ' Vol.%'));
   html('t-st',  u(st0?.toFixed(1), ' °C'));
 
-  // Frostwarnung: Tagesminimum <0 oder aktuelle Bodentemp <0
+  // Frostwarnung: Schwelle 0°C (Gefahr) / -2°C (Frost), mit Temperaturanzeige
   const tMin = ti>=0 ? data.daily.temperature_2m_min[ti] : null;
-  const frostRisk = (tMin != null && tMin < 2) || (st0 != null && st0 < 2);
-  const hardFrost = (tMin != null && tMin < 0) || (st0 != null && st0 < 0);
+  const refTemp = tMin ?? st0; // Lufttemp bevorzugt, sonst Bodentemp
+  const tempStr = refTemp != null
+    ? `<br><span style="font-size:13px;color:var(--muted)">min. ${refTemp.toFixed(1)}°C</span>`
+    : '';
+  const hardFrost = (tMin != null && tMin < -2) || (st0 != null && st0 < -2);
+  const frostRisk = !hardFrost && ((tMin != null && tMin < 0) || (st0 != null && st0 < 0));
   const tileFrost = document.getElementById('tile-frost');
   if (hardFrost) {
     tileFrost.style.borderColor = 'var(--blue)';
     tileFrost.style.background  = 'rgba(96,165,250,.12)';
-    html('t-frost', `<span style="color:var(--blue)">❄️ Frost!</span>`);
+    html('t-frost', `<span style="color:var(--blue)">❄️ Frost!</span>${tempStr}`);
   } else if (frostRisk) {
     tileFrost.style.borderColor = 'var(--yellow)';
     tileFrost.style.background  = 'rgba(250,204,21,.08)';
-    html('t-frost', `<span style="color:var(--yellow)">⚠️ Frostgefahr</span>`);
+    html('t-frost', `<span style="color:var(--yellow)">⚠️ Frostgefahr</span>${tempStr}`);
   } else {
     tileFrost.style.borderColor = '';
     tileFrost.style.background  = '';
-    html('t-frost', `<span style="color:var(--green)">✅ Kein Frost</span>`);
+    html('t-frost', `<span style="color:var(--green)">✅ Kein Frost</span>${tempStr}`);
   }
 
   // Trockenstreifen: Tage in Folge mit <1mm (rückwärts von heute)
