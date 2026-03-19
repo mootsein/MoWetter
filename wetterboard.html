@@ -169,6 +169,42 @@
     }
     #cal-reset:hover { background: rgba(0,212,255,.22); }
 
+    /* Favoriten */
+    #fav-bar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+    #fav-bar .fav-label { color: var(--muted); white-space: nowrap; }
+    .fav-chip {
+      background: rgba(0,212,255,.08);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 3px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      transition: border-color .1s, color .1s;
+    }
+    .fav-chip:hover { border-color: var(--teal); color: var(--teal); }
+    #fav-save {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 3px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+    #fav-save:hover { border-color: var(--yellow); color: var(--yellow); }
+
     /* Theme toggle */
     #theme-btn {
       background: transparent;
@@ -268,6 +304,13 @@
   <div id="loc-info">Wiesenburg, Mark · 52.02°N 12.47°E</div>
 </div>
 
+<!-- Favoriten -->
+<div id="fav-bar">
+  <span class="fav-label">⭐ Favoriten:</span>
+  <div id="fav-chips"></div>
+  <button id="fav-save">+ Aktuellen Ort merken</button>
+</div>
+
 <!-- Error -->
 <div id="error-bar"></div>
 
@@ -291,12 +334,20 @@
       <div class="tile-value" id="t-temp" style="color:var(--orange)">—</div>
     </div>
     <div class="tile">
+      <div class="tile-label">🌡 Gefühlt</div>
+      <div class="tile-value" id="t-apparent" style="color:var(--yellow)">—</div>
+    </div>
+    <div class="tile">
       <div class="tile-label">↕️ Max / Min heute</div>
       <div class="tile-value sm" id="t-maxmin" style="color:var(--text)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">💧 Niederschlag</div>
       <div class="tile-value" id="t-precip" style="color:var(--teal)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🌧 Regen letzte 24h</div>
+      <div class="tile-value" id="t-rain24" style="color:var(--teal)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">💨 Wind</div>
@@ -315,6 +366,14 @@
       <div class="tile-value xs" id="t-wmo" style="color:var(--blue)">—</div>
     </div>
     <div class="tile">
+      <div class="tile-label">🔆 UV-Index</div>
+      <div class="tile-value" id="t-uv" style="color:var(--yellow)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🌅 Sonnenauf / -unter</div>
+      <div class="tile-value xs" id="t-sun" style="color:var(--orange)">—</div>
+    </div>
+    <div class="tile">
       <div class="tile-label">🌿 ET₀ heute</div>
       <div class="tile-value" id="t-et0" style="color:var(--green)">—</div>
     </div>
@@ -326,13 +385,17 @@
       <div class="tile-label">🟤 Bodenfeuchte 0–1cm</div>
       <div class="tile-value" id="t-sm" style="color:var(--orange)">—</div>
     </div>
+    <div class="tile" id="tile-frost">
+      <div class="tile-label">🧊 Frostwarnung</div>
+      <div class="tile-value xs" id="t-frost" style="color:var(--green)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🏜 Trockenstreifen</div>
+      <div class="tile-value" id="t-dry" style="color:var(--yellow)">—</div>
+    </div>
     <div class="tile">
       <div class="tile-label">🌡 Bodentemp. 0cm</div>
       <div class="tile-value" id="t-st" style="color:var(--purple)">—</div>
-    </div>
-    <div class="tile">
-      <div class="tile-label">🌧 Regen letzte 24h</div>
-      <div class="tile-value" id="t-rain24" style="color:var(--teal)">—</div>
     </div>
   </div>
 
@@ -395,6 +458,25 @@ const wmoL = c => {
   if(c<=99)return'Gewitter'; return'—';
 };
 
+// ── Wind direction helper ─────────────────────────────────────────────────────
+function windDir(deg) {
+  if (deg == null) return '';
+  const dirs   = ['N','NO','O','SO','S','SW','W','NW'];
+  const arrows = ['↑','↗','→','↘','↓','↙','←','↖'];
+  const i = Math.round(deg / 45) % 8;
+  return `${arrows[i]} ${dirs[i]}`;
+}
+
+// ── UV label ──────────────────────────────────────────────────────────────────
+function uvLabel(v) {
+  if (v == null) return '';
+  if (v <= 2)  return '🟢 Niedrig';
+  if (v <= 5)  return '🟡 Mittel';
+  if (v <= 7)  return '🟠 Hoch';
+  if (v <= 10) return '🔴 Sehr hoch';
+  return '🟣 Extrem';
+}
+
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const $  = id => document.getElementById(id);
 const sh = (id, mode='flex') => $(id).style.display = mode;
@@ -442,8 +524,8 @@ async function loadWeather(pastDays = 5) {
     const u = new URL('https://api.open-meteo.com/v1/forecast');
     u.searchParams.set('latitude',        loc.lat);
     u.searchParams.set('longitude',       loc.lon);
-    u.searchParams.set('hourly',          'temperature_2m,precipitation,windspeed_10m,relativehumidity_2m,cloudcover,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_temperature_0cm');
-    u.searchParams.set('daily',           'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration');
+    u.searchParams.set('hourly',          'temperature_2m,apparent_temperature,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,cloudcover,uv_index,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_temperature_0cm');
+    u.searchParams.set('daily',           'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration,sunrise,sunset');
     u.searchParams.set('current_weather', 'true');
     u.searchParams.set('past_days',       String(pastDays));
     u.searchParams.set('forecast_days',   '5');
@@ -476,8 +558,9 @@ async function loadWeather(pastDays = 5) {
 
 function updateLocInfo() {
   const t = new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
-  $('loc-info').textContent = `${loc.name} · ${(+loc.lat).toFixed(2)}°N ${(+loc.lon).toFixed(2)}°E · ${t} Uhr`;
+  $('loc-info').textContent = `${loc.name} · ${(+loc.lat).toFixed(2)}°N ${(+loc.lon).toFixed(2)}°E · geladen: ${t}`;
   $('empty-city').textContent = loc.name;
+  startAutoRefresh();
 }
 
 // ── Tiles ─────────────────────────────────────────────────────────────────────
@@ -490,16 +573,40 @@ function updateTiles() {
   const html = (id, h) => $(id).innerHTML = h;
   const u    = (v, unit) => v != null ? `${v}<span class="tile-unit">${unit}</span>` : `—<span class="tile-unit">${unit}</span>`;
 
-  html('t-temp',   u(cur?.temperature?.toFixed(1), '°C'));
-  html('t-maxmin', ti>=0
+  // Basis
+  html('t-temp',     u(cur?.temperature?.toFixed(1), '°C'));
+  const appTemp = hi>=0 ? data.hourly.apparent_temperature?.[hi] : null;
+  html('t-apparent', u(appTemp?.toFixed(1), '°C'));
+  html('t-maxmin',   ti>=0
     ? `<span style="color:var(--red)">${data.daily.temperature_2m_max[ti]?.toFixed(0)}°</span>&nbsp;/&nbsp;<span style="color:var(--blue)">${data.daily.temperature_2m_min[ti]?.toFixed(0)}°</span>`
     : '—');
-  html('t-precip', u(ti>=0 ? data.daily.precipitation_sum[ti]?.toFixed(1) : null, ' mm'));
-  html('t-wind',   u(cur?.windspeed?.toFixed(0), ' km/h'));
-  html('t-hum',    u(hi>=0 ? data.hourly.relativehumidity_2m[hi] : null, ' %'));
-  html('t-cloud',  u(hi>=0 ? data.hourly.cloudcover[hi] : null, ' %'));
-  html('t-wmo',    ti>=0 ? `${wmoI(data.daily.weathercode[ti])} ${wmoL(data.daily.weathercode[ti])}` : '—');
+  html('t-precip',   u(ti>=0 ? data.daily.precipitation_sum[ti]?.toFixed(1) : null, ' mm'));
 
+  // Wind mit Richtung
+  const windDir_  = hi>=0 ? data.hourly.winddirection_10m?.[hi] : (cur?.winddirection ?? null);
+  const windSpeed = cur?.windspeed;
+  html('t-wind', windSpeed != null
+    ? `${windSpeed.toFixed(0)}<span class="tile-unit"> km/h</span><br><span style="font-size:16px;color:var(--muted)">${windDir(windDir_)}</span>`
+    : '—');
+
+  html('t-hum',   u(hi>=0 ? data.hourly.relativehumidity_2m[hi] : null, ' %'));
+  html('t-cloud', u(hi>=0 ? data.hourly.cloudcover[hi] : null, ' %'));
+  html('t-wmo',   ti>=0 ? `${wmoI(data.daily.weathercode[ti])} ${wmoL(data.daily.weathercode[ti])}` : '—');
+
+  // UV-Index
+  const uv = hi>=0 ? data.hourly.uv_index?.[hi] : null;
+  html('t-uv', uv != null
+    ? `${uv.toFixed(1)}<br><span style="font-size:13px">${uvLabel(uv)}</span>`
+    : '—');
+
+  // Sonnenauf/-untergang
+  if (ti>=0 && data.daily.sunrise?.[ti]) {
+    const rise = data.daily.sunrise[ti].slice(11,16);
+    const set_ = data.daily.sunset[ti].slice(11,16);
+    html('t-sun', `🌅 ${rise}<br>🌇 ${set_}`);
+  } else { html('t-sun', '—'); }
+
+  // Agrar
   const et0    = ti>=0 ? data.daily.et0_fao_evapotranspiration?.[ti] : null;
   const precip = ti>=0 ? data.daily.precipitation_sum?.[ti] : null;
   const wb     = (et0 != null && precip != null) ? (precip - et0).toFixed(1) : null;
@@ -512,7 +619,39 @@ function updateTiles() {
   html('t-sm',  u(sm0 != null ? (sm0*100).toFixed(1) : null, ' Vol.%'));
   html('t-st',  u(st0?.toFixed(1), ' °C'));
 
-  // Regen letzte 24h: Summe der stündlichen Niederschläge der letzten 24 Stunden
+  // Frostwarnung: Tagesminimum <0 oder aktuelle Bodentemp <0
+  const tMin = ti>=0 ? data.daily.temperature_2m_min[ti] : null;
+  const frostRisk = (tMin != null && tMin < 2) || (st0 != null && st0 < 2);
+  const hardFrost = (tMin != null && tMin < 0) || (st0 != null && st0 < 0);
+  const tileFrost = document.getElementById('tile-frost');
+  if (hardFrost) {
+    tileFrost.style.borderColor = 'var(--blue)';
+    tileFrost.style.background  = 'rgba(96,165,250,.12)';
+    html('t-frost', `<span style="color:var(--blue)">❄️ Frost!</span>`);
+  } else if (frostRisk) {
+    tileFrost.style.borderColor = 'var(--yellow)';
+    tileFrost.style.background  = 'rgba(250,204,21,.08)';
+    html('t-frost', `<span style="color:var(--yellow)">⚠️ Frostgefahr</span>`);
+  } else {
+    tileFrost.style.borderColor = '';
+    tileFrost.style.background  = '';
+    html('t-frost', `<span style="color:var(--green)">✅ Kein Frost</span>`);
+  }
+
+  // Trockenstreifen: Tage in Folge mit <1mm (rückwärts von heute)
+  let dryDays = 0;
+  const todayIdx = data.daily.time.indexOf(today);
+  if (todayIdx >= 0) {
+    for (let i = todayIdx; i >= 0; i--) {
+      const p = data.daily.precipitation_sum[i] ?? 0;
+      if (p >= 1) break;
+      dryDays++;
+    }
+  }
+  const dryCol = dryDays <= 3 ? 'var(--green)' : dryDays <= 7 ? 'var(--yellow)' : 'var(--red)';
+  html('t-dry', `<span style="color:${dryCol}">${dryDays}</span><span class="tile-unit"> Tage</span>`);
+
+  // Regen letzte 24h
   let rain24 = null;
   if (hi >= 0) {
     const start24 = Math.max(0, hi - 23);
@@ -823,6 +962,58 @@ themeBtn.addEventListener('click', () => {
 });
 
 applyTheme();
+
+// ── Favoriten ─────────────────────────────────────────────────────────────────
+function getFavs()      { try { return JSON.parse(localStorage.getItem('favs') || '[]'); } catch { return []; } }
+function saveFavs(favs) { localStorage.setItem('favs', JSON.stringify(favs)); }
+
+function renderFavs() {
+  const chips = $('fav-chips');
+  chips.innerHTML = '';
+  getFavs().forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'fav-chip';
+    chip.textContent = f.name;
+    chip.addEventListener('click', () => {
+      loc = f;
+      cityIn.value  = f.name;
+      $('loc-info').textContent = f.name;
+      loadWeather(loadedPastDays);
+    });
+    // Rechtsklick zum Entfernen
+    chip.title = 'Klick: laden · Rechtsklick: entfernen';
+    chip.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const favs = getFavs().filter(x => !(x.name === f.name && x.lat === f.lat));
+      saveFavs(favs);
+      renderFavs();
+    });
+    chips.appendChild(chip);
+  });
+}
+
+$('fav-save').addEventListener('click', () => {
+  const favs = getFavs();
+  if (!favs.find(f => f.lat === loc.lat && f.lon === loc.lon)) {
+    favs.push({ name: loc.name, lat: loc.lat, lon: loc.lon });
+    saveFavs(favs);
+    renderFavs();
+    $('fav-save').textContent = '✅ Gespeichert!';
+    setTimeout(() => { $('fav-save').textContent = '+ Aktuellen Ort merken'; }, 1800);
+  }
+});
+
+renderFavs();
+
+// ── Auto-Refresh (alle 30 min) ────────────────────────────────────────────────
+let autoRefreshTimer = null;
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    loadWeather(loadedPastDays);
+  }, 30 * 60 * 1000);
+}
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 $('load-btn').addEventListener('click', () => loadWeather(loadedPastDays));
