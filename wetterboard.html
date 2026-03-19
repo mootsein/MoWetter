@@ -1020,9 +1020,17 @@ $('load-btn').addEventListener('click', () => loadWeather(loadedPastDays));
 $('empty-btn').addEventListener('click', () => loadWeather(5));
 loadWeather(5);
 
-// Service Worker registrieren
+// Service Worker registrieren + Auto-Reload bei neuer Version
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    // Prüft beim Laden ob es ein Update gibt
+    reg.update();
+  }).catch(() => {});
+
+  // Wenn ein neuer SW die Kontrolle übernimmt → Seite neu laden
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }
 </script>
 </body>
