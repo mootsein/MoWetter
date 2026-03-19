@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>⛅ WetterBoard</title>
+  <meta name="theme-color" content="#00d4ff"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="WetterBoard"/>
+  <link rel="manifest" href="./manifest.json"/>
+  <link rel="apple-touch-icon" href="./icon.svg"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0f1117;
+      --panel:  #1a1d27;
+      --border: #22263a;
+      --text:   #f1f5f9;
+      --muted:  #8fa3b8;
+      --green:  #34d399;
+      --blue:   #60a5fa;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --red:    #ef4444;
+      --purple: #a78bfa;
+      --teal:   #00d4ff;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    #header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    #header h1 { font-size: 16px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+
+    #city-wrap { position: relative; flex: 1 1 220px; max-width: 340px; }
+    #city-input {
+      width: 100%;
+      background: #23262e;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 5px 10px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+    }
+    #city-input:focus { border-color: var(--teal); }
+
+    #suggestions {
+      display: none;
+      position: absolute;
+      top: 100%; left: 0; right: 0;
+      background: #23262e;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      margin-top: 2px;
+      z-index: 999;
+    }
+    .sug-item { padding: 7px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--border); }
+    .sug-item:last-child { border-bottom: none; }
+    .sug-item:hover { background: var(--border); }
+
+    #load-btn {
+      background: #1a5c38;
+      border: 1px solid #2d8f5b;
+      color: #aef0c7;
+      padding: 5px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #load-btn:hover:not(:disabled) { background: #1e6d42; }
+    #load-btn:disabled { opacity: .6; cursor: wait; }
+    #loc-info { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    /* ── Error ── */
+    #error-bar { display:none; background:#2d1515; border-bottom:1px solid var(--red); color:var(--red); padding:8px 16px; font-size:12px; }
+
+    /* ── Empty ── */
+    #empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 57px); gap:20px; }
+    #empty .big { font-size: 64px; }
+    #empty .msg { color: var(--muted); font-size: 15px; }
+    #empty-btn { background:#1a5c38; border:1px solid #2d8f5b; color:#aef0c7; padding:10px 28px; border-radius:3px; cursor:pointer; font-size:14px; font-weight:600; }
+
+    /* ── Loading ── */
+    #loading { display:none; align-items:center; justify-content:center; height:30vh; color:var(--muted); font-size:14px; gap:10px; }
+
+    /* ── Dashboard ── */
+    #dashboard { display:none; padding:12px 12px 32px; }
+
+    /* ── Tiles ── */
+    #tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 14px 10px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: center;
+    }
+    .tile-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; width: 100%; }
+    .tile-value { font-size: 42px; font-weight: 300; line-height: 1.1; }
+    .tile-value.sm  { font-size: 42px; font-weight: 300; }
+    .tile-value.xs  { font-size: 22px; font-weight: 400; margin-top: 4px; }
+    .tile-unit { font-size: 14px; color: var(--muted); margin-left: 4px; }
+
+    /* ── Panel ── */
+    .panel { background:var(--panel); border:1px solid var(--border); border-radius:3px; padding:14px 16px; margin-bottom:8px; }
+    .panel-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:12px; }
+
+    /* ── Calendar ── */
+    #cal-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    #cal-range { font-size:11px; color:var(--teal); margin-top:3px; }
+
+    /* Preset + Alle Buttons */
+    .cal-btns { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+
+    #cal-reset {
+      background: rgba(0,212,255,.12);
+      border: 1px solid var(--teal);
+      color: var(--teal);
+      padding: 8px 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+    #cal-reset:hover { background: rgba(0,212,255,.22); }
+
+    #share-btn {
+      background: rgba(37,211,102,.12);
+      border: 1px solid #25d366;
+      color: #25d366;
+      padding: 8px 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      white-space: nowrap;
+    }
+    #share-btn:hover { background: rgba(37,211,102,.22); }
+
+    /* Share modal */
+    #share-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #share-modal {
+      background: #1a1d27;
+      border: 1px solid #25d366;
+      border-radius: 6px;
+      padding: 22px 24px;
+      width: min(520px, 92vw);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #share-modal h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #25d366;
+      margin: 0;
+    }
+    #share-preview {
+      background: #111217;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text);
+      max-height: 320px;
+      overflow-y: auto;
+      font-family: monospace;
+    }
+    .share-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    #copy-btn {
+      background: rgba(37,211,102,.15);
+      border: 1px solid #25d366;
+      color: #25d366;
+      padding: 9px 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      flex: 1;
+    }
+    #copy-btn:hover { background: rgba(37,211,102,.28); }
+    #wa-link {
+      display: inline-block;
+      background: #25d366;
+      color: #000;
+      padding: 9px 22px;
+      border-radius: 3px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      text-align: center;
+      flex: 1;
+    }
+    #wa-link:hover { background: #1fbc58; }
+    #close-share {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #copy-confirm {
+      font-size: 12px;
+      color: #25d366;
+      display: none;
+      margin-top: -6px;
+    }
+
+    .preset-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .preset-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .preset-btn.active { background: rgba(0,212,255,.1); border-color: var(--teal); color: var(--teal); }
+
+    #cal-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+      gap: 6px;
+    }
+    .day {
+      background: transparent;
+      border: 1px solid rgba(0,212,255,.35);
+      border-radius: 3px;
+      padding: 10px 4px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color .1s, background .1s;
+    }
+    .day:hover { border-color: var(--teal); }
+    .day.in-range  { background: rgba(52,211,153,.08); border-color: var(--green); }
+    .day.is-today  { background: rgba(251,146,60,.1); border-color: var(--orange) !important; }
+    .day.past      { opacity: .6; }
+    .day.selecting { border-color: var(--yellow); background: rgba(250,204,21,.08); }
+    .d-icon  { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+    .d-lbl   { font-size: 13px; color: var(--muted); line-height: 1.4; margin-bottom: 7px; }
+    .d-max   { font-size: 17px; color: var(--red);   font-weight: 600; }
+    .d-min   { font-size: 17px; color: var(--blue);  font-weight: 600; }
+    .d-rain  { font-size: 12px; color: var(--teal);  margin-top: 5px; }
+    .d-tag   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    #cal-hint { font-size: 10px; color: var(--muted); margin-top: 8px; }
+
+    /* ── Single chart area ── */
+    #chart-panel .panel-title { margin-bottom: 10px; }
+
+    .chart-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .chart-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: border-color .1s, color .1s, background .1s;
+    }
+    .chart-btn:hover { border-color: var(--teal); color: var(--text); }
+    .chart-btn.active { background: rgba(0,212,255,.12); border-color: var(--teal); color: var(--teal); }
+
+    #chart-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px; }
+
+    /* ── Footer ── */
+    #footer { font-size: 10px; color: var(--muted); text-align: center; padding-top: 4px; }
+    #footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <h1>⛅ WetterBoard</h1>
+  <div id="city-wrap">
+    <input id="city-input" type="text" placeholder="Stadt suchen…" value="Wiesenburg, Mark" autocomplete="off"/>
+    <div id="suggestions"></div>
+  </div>
+  <button id="load-btn">↺ Aktualisieren</button>
+  <div id="loc-info">Wiesenburg, Mark · 52.02°N 12.47°E</div>
+</div>
+
+<!-- Error -->
+<div id="error-bar"></div>
+
+<!-- Empty state -->
+<div id="empty">
+  <div class="big">🌤</div>
+  <div class="msg">Wetterdaten für <b id="empty-city">Wiesenburg, Mark</b> laden</div>
+  <button id="empty-btn">↺ Daten laden</button>
+</div>
+
+<!-- Loading -->
+<div id="loading">⏳ Wetterdaten werden geladen…</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+
+  <!-- Tiles -->
+  <div id="tiles">
+    <div class="tile">
+      <div class="tile-label">🌡️ Temperatur</div>
+      <div class="tile-value" id="t-temp" style="color:var(--orange)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">↕️ Max / Min heute</div>
+      <div class="tile-value sm" id="t-maxmin" style="color:var(--text)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">💧 Niederschlag</div>
+      <div class="tile-value" id="t-precip" style="color:var(--teal)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">💨 Wind</div>
+      <div class="tile-value" id="t-wind" style="color:var(--green)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">💦 Luftfeuchte</div>
+      <div class="tile-value" id="t-hum" style="color:var(--purple)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">☁️ Bewölkung</div>
+      <div class="tile-value" id="t-cloud" style="color:var(--muted)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🌤 Wetter</div>
+      <div class="tile-value xs" id="t-wmo" style="color:var(--blue)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🌿 ET₀ heute</div>
+      <div class="tile-value" id="t-et0" style="color:var(--green)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">⚖️ Wasserbilanz</div>
+      <div class="tile-value sm" id="t-wb" style="color:var(--yellow)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🟤 Bodenfeuchte 0–1cm</div>
+      <div class="tile-value" id="t-sm" style="color:var(--orange)">—</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">🌡 Bodentemp. 0cm</div>
+      <div class="tile-value" id="t-st" style="color:var(--purple)">—</div>
+    </div>
+  </div>
+
+  <!-- Calendar -->
+  <div class="panel">
+    <div id="cal-head">
+      <div>
+        <div class="panel-title" style="margin-bottom:2px">📅 Zeitraum</div>
+        <div id="cal-range"></div>
+      </div>
+      <div class="cal-btns">
+        <button id="cal-reset" title="Gesamten Zeitraum anzeigen">↺ Alle</button>
+        <button class="preset-btn active" data-days="10">10 T</button>
+        <button class="preset-btn" data-days="14">14 T</button>
+        <button class="preset-btn" data-days="30">30 T</button>
+        <button class="preset-btn" data-days="60">60 T</button>
+        <button id="share-btn">📲 Teilen</button>
+      </div>
+    </div>
+    <div id="cal-strip"></div>
+    <div id="cal-hint">1. Klick = Von · 2. Klick = Bis · Diagramm aktualisiert sich automatisch · Bei älteren Daten wird nachgeladen</div>
+  </div>
+
+  <!-- Single main chart -->
+  <div class="panel" id="chart-panel">
+    <div class="chart-btns">
+      <button class="chart-btn active" data-mode="temp">🌡 Temperatur</button>
+      <button class="chart-btn" data-mode="rain">💧 Niederschlag</button>
+      <button class="chart-btn" data-mode="wind">💨 Wind</button>
+      <button class="chart-btn" data-mode="hum">💦 Luftfeuchte</button>
+      <button class="chart-btn" data-mode="et0">🌿 ET₀ & Niederschlag</button>
+      <button class="chart-btn" data-mode="soil">🟤 Bodenfeuchte</button>
+    </div>
+    <div id="chart-title">Temperaturverlauf (°C)</div>
+    <canvas id="c-main"></canvas>
+  </div>
+
+  <div id="footer">
+    Datenquelle: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> · Kein API-Key erforderlich
+  </div>
+</div>
+<!-- Share modal -->
+<div id="share-overlay">
+  <div id="share-modal">
+    <h3>📲 WhatsApp-Nachricht</h3>
+    <pre id="share-preview"></pre>
+    <div id="copy-confirm">✅ In Zwischenablage kopiert!</div>
+    <div class="share-actions">
+      <button id="copy-btn">📋 Text kopieren</button>
+      <a id="wa-link" href="#" target="_blank">💬 WhatsApp Web öffnen</a>
+      <button id="close-share">Schließen</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">Tipp: Text kopieren → WhatsApp Desktop oder Web öffnen → in Gruppe einfügen</div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let loc       = { name: 'Wiesenburg, Mark', lat: 52.02, lon: 12.47 };
+let data      = null;
+let rng       = { start: null, end: null, sel: false };
+let chartMode = 'temp';
+let loadedPastDays = 5;
+let CHS       = {};
+
+const today = new Date().toISOString().split('T')[0];
+
+// ── WMO ───────────────────────────────────────────────────────────────────────
+const WI = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌦️',
+            61:'🌧️',63:'🌧️',65:'🌧️',71:'❄️',73:'❄️',75:'❄️',77:'🌨️',
+            80:'🌦️',81:'🌦️',82:'⛈️',85:'❄️',86:'❄️',95:'⛈️',96:'⛈️',99:'⛈️'};
+const wmoI = c => WI[c] ?? WI[Math.floor(c/10)*10] ?? '🌡️';
+const wmoL = c => {
+  if(c===0)return'Klar'; if(c<=3)return'Bewölkt'; if(c<=48)return'Nebel';
+  if(c<=67)return'Regen'; if(c<=77)return'Schnee'; if(c<=82)return'Schauer';
+  if(c<=99)return'Gewitter'; return'—';
+};
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const sh = (id, mode='flex') => $(id).style.display = mode;
+const hd = id => $(id).style.display = 'none';
+
+// ── Geocoding ─────────────────────────────────────────────────────────────────
+const cityIn = $('city-input');
+const sugBox = $('suggestions');
+let sugTimer;
+
+cityIn.addEventListener('input', () => { clearTimeout(sugTimer); sugTimer = setTimeout(() => fetchSugs(cityIn.value), 320); });
+cityIn.addEventListener('blur',  () => setTimeout(() => hd('suggestions'), 180));
+cityIn.addEventListener('focus', () => { if(sugBox.children.length) sh('suggestions','block'); });
+
+async function fetchSugs(q) {
+  if (q.length < 2) { hd('suggestions'); return; }
+  try {
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=de`);
+    const d = await r.json();
+    sugBox.innerHTML = '';
+    (d.results||[]).forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'sug-item';
+      div.textContent = `${s.name}${s.admin1?', '+s.admin1:''}, ${s.country}`;
+      div.addEventListener('mousedown', () => {
+        loc = { name: s.name, lat: s.latitude, lon: s.longitude };
+        cityIn.value = div.textContent;
+        hd('suggestions');
+        loadWeather(5);
+      });
+      sugBox.appendChild(div);
+    });
+    sugBox.children.length ? sh('suggestions','block') : hd('suggestions');
+  } catch { hd('suggestions'); }
+}
+
+// ── Fetch weather ─────────────────────────────────────────────────────────────
+async function loadWeather(pastDays = 5) {
+  hd('empty'); hd('dashboard'); hd('error-bar');
+  sh('loading');
+  $('load-btn').disabled = true;
+  $('load-btn').textContent = '⏳ Lädt…';
+
+  try {
+    const u = new URL('https://api.open-meteo.com/v1/forecast');
+    u.searchParams.set('latitude',        loc.lat);
+    u.searchParams.set('longitude',       loc.lon);
+    u.searchParams.set('hourly',          'temperature_2m,precipitation,windspeed_10m,relativehumidity_2m,cloudcover,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_temperature_0cm');
+    u.searchParams.set('daily',           'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration');
+    u.searchParams.set('current_weather', 'true');
+    u.searchParams.set('past_days',       String(pastDays));
+    u.searchParams.set('forecast_days',   '5');
+    u.searchParams.set('timezone',        'auto');
+
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    data = await r.json();
+    loadedPastDays = pastDays;
+
+    rng = { start: data.daily.time[0], end: data.daily.time[data.daily.time.length-1], sel: false };
+
+    updateLocInfo();
+    updateTiles();
+    renderCalendar();
+    renderChart();
+
+    hd('loading');
+    sh('dashboard', 'block');
+  } catch(e) {
+    $('error-bar').textContent = '⚠️ Fehler: ' + e.message;
+    sh('error-bar', 'block');
+    hd('loading');
+    sh('empty');
+  } finally {
+    $('load-btn').disabled = false;
+    $('load-btn').textContent = '↺ Aktualisieren';
+  }
+}
+
+function updateLocInfo() {
+  const t = new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+  $('loc-info').textContent = `${loc.name} · ${(+loc.lat).toFixed(2)}°N ${(+loc.lon).toFixed(2)}°E · ${t} Uhr`;
+  $('empty-city').textContent = loc.name;
+}
+
+// ── Tiles ─────────────────────────────────────────────────────────────────────
+function updateTiles() {
+  const cur  = data.current_weather;
+  const ti   = data.daily.time.indexOf(today);
+  const nowH = new Date().getHours();
+  const hi   = data.hourly.time.findIndex(t => t.startsWith(today) && parseInt(t.slice(11,13)) === nowH);
+
+  const html = (id, h) => $(id).innerHTML = h;
+  const u    = (v, unit) => v != null ? `${v}<span class="tile-unit">${unit}</span>` : `—<span class="tile-unit">${unit}</span>`;
+
+  html('t-temp',   u(cur?.temperature?.toFixed(1), '°C'));
+  html('t-maxmin', ti>=0
+    ? `<span style="color:var(--red)">${data.daily.temperature_2m_max[ti]?.toFixed(0)}°</span>&nbsp;/&nbsp;<span style="color:var(--blue)">${data.daily.temperature_2m_min[ti]?.toFixed(0)}°</span>`
+    : '—');
+  html('t-precip', u(ti>=0 ? data.daily.precipitation_sum[ti]?.toFixed(1) : null, ' mm'));
+  html('t-wind',   u(cur?.windspeed?.toFixed(0), ' km/h'));
+  html('t-hum',    u(hi>=0 ? data.hourly.relativehumidity_2m[hi] : null, ' %'));
+  html('t-cloud',  u(hi>=0 ? data.hourly.cloudcover[hi] : null, ' %'));
+  html('t-wmo',    ti>=0 ? `${wmoI(data.daily.weathercode[ti])} ${wmoL(data.daily.weathercode[ti])}` : '—');
+
+  const et0    = ti>=0 ? data.daily.et0_fao_evapotranspiration?.[ti] : null;
+  const precip = ti>=0 ? data.daily.precipitation_sum?.[ti] : null;
+  const wb     = (et0 != null && precip != null) ? (precip - et0).toFixed(1) : null;
+  const sm0    = hi>=0 ? data.hourly.soil_moisture_0_to_1cm?.[hi] : null;
+  const st0    = hi>=0 ? data.hourly.soil_temperature_0cm?.[hi] : null;
+  const wbCol  = wb != null ? (parseFloat(wb) >= 0 ? 'var(--green)' : parseFloat(wb) >= -10 ? 'var(--yellow)' : 'var(--red)') : 'var(--yellow)';
+
+  html('t-et0', u(et0?.toFixed(1), ' mm'));
+  html('t-wb',  wb != null ? `<span style="color:${wbCol}">${+wb > 0 ? '+'+wb : wb}</span><span class="tile-unit"> mm</span>` : '—');
+  html('t-sm',  u(sm0 != null ? (sm0*100).toFixed(1) : null, ' Vol.%'));
+  html('t-st',  u(st0?.toFixed(1), ' °C'));
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+function renderCalendar() {
+  const strip = $('cal-strip');
+  strip.innerHTML = '';
+
+  data.daily.time.forEach((date, i) => {
+    const past    = date < today;
+    const isToday = date === today;
+    const future  = date > today;
+    const inRange = date >= rng.start && date <= rng.end;
+    const isSel   = rng.sel && date === rng.start;
+
+    const lbl  = new Date(date+'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+    const max  = data.daily.temperature_2m_max[i]?.toFixed(0);
+    const min  = data.daily.temperature_2m_min[i]?.toFixed(0);
+    const prec = data.daily.precipitation_sum[i];
+
+    const div = document.createElement('div');
+    div.className = 'day'
+      + (isToday ? ' is-today' : inRange ? ' in-range' : '')
+      + (past && !isToday ? ' past' : '')
+      + (isSel ? ' selecting' : '');
+
+    div.innerHTML = `
+      <div class="d-icon">${wmoI(data.daily.weathercode[i])}</div>
+      <div class="d-lbl">${lbl}</div>
+      <div class="d-max">${max}°</div>
+      <div class="d-min">${min}°</div>
+      ${prec > 0 ? `<div class="d-rain">${prec.toFixed(1)} mm</div>` : ''}
+      ${future   ? `<div class="d-tag">↗ prognose</div>` : ''}
+    `;
+    div.addEventListener('click', () => clickDay(date));
+    strip.appendChild(div);
+  });
+
+  updateRngInfo();
+}
+
+function clickDay(date) {
+  if (!rng.sel) {
+    rng = { start: date, end: date, sel: true };
+    renderCalendar();
+  } else {
+    const s = rng.start;
+    const [a, b] = date < s ? [date, s] : [s, date];
+    rng = { start: a, end: b, sel: false };
+
+    // Nachladebedarf prüfen: ist start-Datum älter als geladene Daten?
+    if (a < data.daily.time[0]) {
+      const daysNeeded = Math.ceil((new Date(today) - new Date(a)) / 864e5) + 2;
+      loadWeather(Math.min(daysNeeded, 92));
+    } else {
+      renderCalendar();
+      renderChart();
+    }
+  }
+}
+
+function updateRngInfo() {
+  $('cal-range').textContent = rng.sel
+    ? `Von: ${rng.start} → Enddatum wählen`
+    : `${rng.start}  →  ${rng.end}`;
+}
+
+// Alle-Button
+$('cal-reset').addEventListener('click', () => {
+  if (!data) return;
+  rng = { start: data.daily.time[0], end: data.daily.time[data.daily.time.length-1], sel: false };
+  renderCalendar();
+  renderChart();
+  // Preset-Buttons: keiner aktiv
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+});
+
+// Preset-Buttons
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const days = parseInt(btn.dataset.days);
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadWeather(days - 5); // past_days = gewählte Tage minus 5 Prognose
+  });
+});
+
+// ── Filtered data ─────────────────────────────────────────────────────────────
+function getHourly() {
+  const labels=[], temp=[], precip=[], wind=[], hum=[], sm0=[], sm1=[];
+  data.hourly.time.forEach((t,i) => {
+    const d = t.split('T')[0];
+    if (d >= rng.start && d <= rng.end) {
+      labels.push(`${d.slice(5).replace('-','.')} ${t.slice(11,16)}`);
+      temp.push(data.hourly.temperature_2m[i]);
+      precip.push(data.hourly.precipitation[i]);
+      wind.push(data.hourly.windspeed_10m[i]);
+      hum.push(data.hourly.relativehumidity_2m[i]);
+      const s0 = data.hourly.soil_moisture_0_to_1cm?.[i];
+      const s1 = data.hourly.soil_moisture_1_to_3cm?.[i];
+      sm0.push(s0 != null ? +(s0*100).toFixed(2) : null);
+      sm1.push(s1 != null ? +(s1*100).toFixed(2) : null);
+    }
+  });
+  return { labels, temp, precip, wind, hum, sm0, sm1 };
+}
+
+function getDaily() {
+  const labels=[], et0=[], precipD=[];
+  data.daily.time.forEach((d,i) => {
+    if (d >= rng.start && d <= rng.end) {
+      labels.push(new Date(d+'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}));
+      et0.push(data.daily.et0_fao_evapotranspiration?.[i] ?? null);
+      precipD.push(data.daily.precipitation_sum?.[i] ?? null);
+    }
+  });
+  return { labels, et0, precipD };
+}
+
+// ── Heute-Linie Plugin ────────────────────────────────────────────────────────
+const todayLine = {
+  id: 'todayLine',
+  afterDraw(chart) {
+    const { ctx, chartArea, scales, data: cd } = chart;
+    if (!scales.x || !cd.labels) return;
+    const key = today.slice(5).replace('-','.');
+    const idx = cd.labels.findIndex(l => l.includes(key));
+    if (idx < 0) return;
+    const x = scales.x.getPixelForValue(cd.labels[idx]);
+    ctx.save();
+    ctx.strokeStyle = '#fb923c';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fb923c';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('Heute', x+4, chartArea.top+14);
+    ctx.restore();
+  }
+};
+Chart.register(todayLine);
+
+Chart.defaults.color       = '#8fa3b8';
+Chart.defaults.borderColor = '#22263a';
+Chart.defaults.font.family = "'Inter','Helvetica Neue',Arial,sans-serif";
+Chart.defaults.font.size   = 12;
+
+function baseOpts(yUnit, legend=false) {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    aspectRatio: 3.2,
+    animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: legend, position:'top', labels:{ boxWidth:12, font:{size:12}, color:'#8fa3b8' } },
+      tooltip: { backgroundColor:'#23262e', borderColor:'#22263a', borderWidth:1, titleColor:'#8fa3b8', bodyColor:'#f1f5f9', padding:10 }
+    },
+    scales: {
+      x: { grid:{ color:'#22263a', drawBorder:false }, ticks:{ maxTicksLimit:12, maxRotation:0, color:'#8fa3b8', font:{size:12} } },
+      y: { grid:{ color:'#22263a', drawBorder:false }, ticks:{ color:'#8fa3b8', font:{size:12}, callback: v => v+yUnit } }
+    }
+  };
+}
+
+// ── Chart modes ───────────────────────────────────────────────────────────────
+const MODES = {
+  temp: {
+    title: 'Temperaturverlauf (°C)',
+    build: h => ({
+      labels: h.labels,
+      datasets: [{ label:'Temperatur (°C)', data:h.temp,
+        borderColor:'#fb923c', backgroundColor:'rgba(251,146,60,.12)',
+        borderWidth:2, pointRadius:0, tension:.3, fill:true }]
+    }),
+    opts: () => baseOpts('°')
+  },
+  rain: {
+    title: 'Niederschlag (mm/h)',
+    build: h => ({
+      labels: h.labels,
+      datasets: [{ label:'mm', data:h.precip,
+        borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.15)',
+        borderWidth:2, pointRadius:0, tension:.3, fill:true }]
+    }),
+    opts: () => baseOpts(' mm')
+  },
+  wind: {
+    title: 'Windgeschwindigkeit (km/h)',
+    build: h => ({
+      labels: h.labels,
+      datasets: [{ label:'km/h', data:h.wind,
+        borderColor:'#34d399', backgroundColor:'rgba(52,211,153,.15)',
+        borderWidth:2, pointRadius:0, tension:.3, fill:true }]
+    }),
+    opts: () => baseOpts(' km/h')
+  },
+  hum: {
+    title: 'Luftfeuchtigkeit (%)',
+    build: h => ({
+      labels: h.labels,
+      datasets: [{ label:'%', data:h.hum,
+        borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,.15)',
+        borderWidth:2, pointRadius:0, tension:.3, fill:true }]
+    }),
+    opts: () => baseOpts('%')
+  },
+  et0: {
+    title: 'ET₀ & Niederschlag täglich (mm)',
+    build: (_h, dl) => ({
+      labels: dl.labels,
+      datasets: [
+        { label:'ET₀ (mm)', data:dl.et0,
+          borderColor:'#34d399', backgroundColor:'rgba(52,211,153,.15)',
+          borderWidth:2, pointRadius:4, tension:.3, fill:true },
+        { label:'Niederschlag (mm)', data:dl.precipD,
+          borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.12)',
+          borderWidth:2, pointRadius:4, tension:.3, fill:true }
+      ]
+    }),
+    opts: () => ({ ...baseOpts(' mm', true), aspectRatio: 3.2 })
+  },
+  soil: {
+    title: 'Bodenfeuchte 0–3cm (Vol.%)',
+    build: h => ({
+      labels: h.labels,
+      datasets: [
+        { label:'0–1 cm', data:h.sm0,
+          borderColor:'#fb923c', backgroundColor:'rgba(251,146,60,.15)',
+          borderWidth:2, pointRadius:0, tension:.3, fill:true },
+        { label:'1–3 cm', data:h.sm1,
+          borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,.1)',
+          borderWidth:1.5, pointRadius:0, tension:.3, fill:false, borderDash:[4,3] }
+      ]
+    }),
+    opts: () => ({ ...baseOpts(' Vol.%', true), aspectRatio: 3.2 })
+  }
+};
+
+// ── Render single chart ───────────────────────────────────────────────────────
+function renderChart() {
+  if (CHS.main) { CHS.main.destroy(); CHS.main = null; }
+  const h  = getHourly();
+  const dl = getDaily();
+  const m  = MODES[chartMode];
+
+  $('chart-title').textContent = m.title;
+  CHS.main = new Chart($('c-main'), {
+    type: 'line',
+    data: m.build(h, dl),
+    options: m.opts()
+  });
+
+  // sync button state
+  document.querySelectorAll('.chart-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === chartMode)
+  );
+}
+
+// ── Chart-Button clicks ───────────────────────────────────────────────────────
+document.querySelectorAll('.chart-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    chartMode = btn.dataset.mode;
+    renderChart();
+  });
+});
+
+// ── Share / WhatsApp ──────────────────────────────────────────────────────────
+function buildShareText() {
+  if (!data) return '';
+  const cur  = data.current_weather;
+  const ti   = data.daily.time.indexOf(today);
+  const nowH = new Date().getHours();
+  const hi   = data.hourly.time.findIndex(t => t.startsWith(today) && parseInt(t.slice(11,13)) === nowH);
+
+  const fmt  = (v, d=1) => v != null ? (+v).toFixed(d) : '—';
+  const now  = new Date().toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+  // Aktuelle Werte
+  const tMax  = ti>=0 ? fmt(data.daily.temperature_2m_max[ti], 0)  : '—';
+  const tMin  = ti>=0 ? fmt(data.daily.temperature_2m_min[ti], 0)  : '—';
+  const prec  = ti>=0 ? fmt(data.daily.precipitation_sum[ti], 1)   : '—';
+  const et0   = ti>=0 ? fmt(data.daily.et0_fao_evapotranspiration?.[ti], 1) : '—';
+  const wb    = (ti>=0 && data.daily.et0_fao_evapotranspiration?.[ti] != null)
+    ? (data.daily.precipitation_sum[ti] - data.daily.et0_fao_evapotranspiration[ti]).toFixed(1)
+    : null;
+  const wbStr = wb != null ? `${+wb >= 0 ? '+' : ''}${wb} mm ${+wb >= 0 ? '✅' : +wb >= -10 ? '🟡' : '🔴'}` : '—';
+  const sm0   = (hi>=0 && data.hourly.soil_moisture_0_to_1cm?.[hi] != null)
+    ? (data.hourly.soil_moisture_0_to_1cm[hi]*100).toFixed(1) : '—';
+  const wind  = fmt(cur?.windspeed, 0);
+  const hum   = hi>=0 ? fmt(data.hourly.relativehumidity_2m[hi], 0) : '—';
+
+  // 3-Tage-Prognose
+  const fcLines = [];
+  for (let i = ti+1; i < Math.min(ti+4, data.daily.time.length); i++) {
+    if (i < 0) continue;
+    const d   = new Date(data.daily.time[i]+'T12:00');
+    const lbl = d.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+    const p   = data.daily.precipitation_sum[i];
+    const ico = wmoI(data.daily.weathercode[i]);
+    const rain = p > 0.2 ? `🌧 ${p.toFixed(1)} mm` : '☀️ trocken';
+    fcLines.push(`  ${lbl}: ${fmt(data.daily.temperature_2m_min[i],0)}°/${fmt(data.daily.temperature_2m_max[i],0)}°C  ${ico} ${rain}`);
+  }
+
+  return `🌾 *${loc.name}* | ${now} Uhr
+━━━━━━━━━━━━━━━━━━
+🌡️ Temp:         *${fmt(cur?.temperature, 1)}°C*  (↑${tMax}° / ↓${tMin}°)
+💧 Niederschlag: *${prec} mm*
+💨 Wind:         *${wind} km/h*
+💦 Luftfeuchte:  *${hum} %*
+🌿 ET₀:          *${et0} mm*
+⚖️ Wasserbilanz: *${wbStr}*
+🟤 Bodenfeuchte: *${sm0} Vol.%*
+━━━━━━━━━━━━━━━━━━
+📡 *Prognose:*
+${fcLines.join('\n')}`;
+}
+
+// Share modal
+const overlay = $('share-overlay');
+
+$('share-btn').addEventListener('click', () => {
+  const text = buildShareText();
+  if (!text) return;
+  $('share-preview').textContent = text;
+  $('wa-link').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+  $('copy-confirm').style.display = 'none';
+  overlay.style.display = 'flex';
+});
+
+$('copy-btn').addEventListener('click', async () => {
+  const text = $('share-preview').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    $('copy-confirm').style.display = 'block';
+    setTimeout(() => { $('copy-confirm').style.display = 'none'; }, 2500);
+  } catch {
+    $('share-preview').select?.();
+  }
+});
+
+$('close-share').addEventListener('click', () => { overlay.style.display = 'none'; });
+overlay.addEventListener('click', e => { if (e.target === overlay) overlay.style.display = 'none'; });
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+$('load-btn').addEventListener('click', () => loadWeather(loadedPastDays));
+$('empty-btn').addEventListener('click', () => loadWeather(5));
+loadWeather(5);
+
+// Service Worker registrieren
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
