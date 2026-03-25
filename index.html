@@ -1250,7 +1250,14 @@ function baseOpts(yUnit, legend=false) {
       tooltip: { backgroundColor:tb, borderColor:tbc, borderWidth:1, titleColor:tc, bodyColor:bodyCol, padding:10 }
     },
     scales: {
-      x: { grid:{ color:gc, drawBorder:false }, ticks:{ maxTicksLimit:12, maxRotation:0, color:tc, font:{size:12} } },
+      x: { grid:{ color:gc, drawBorder:false }, ticks:{ maxRotation:0, color:tc, font:{size:12},
+        callback(val, idx) {
+          const lbl   = this.getLabelForValue(val);
+          const date  = lbl.split(' ')[0]; // DD.MM (oder DD.MM.YY bei Tages-Labels)
+          const prev  = idx > 0 ? this.getLabelForValue(this.chart.data.labels[idx-1]) : null;
+          return (!prev || prev.split(' ')[0] !== date) ? date : '';
+        }
+      } },
       y: { grid:{ color:gc, drawBorder:false }, ticks:{ color:tc, font:{size:12}, callback: v => v+yUnit } }
     }
   };
