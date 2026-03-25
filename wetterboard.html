@@ -1639,17 +1639,26 @@ async function loadHistorical(startDate, endDate) {
   $('analysis-loading').style.display = 'inline';
   $('analysis-load-btn').disabled = true;
   try {
+    // Archive-API liefert nur vergangene Daten — end_date darf nicht heute oder
+    // in der Zukunft liegen. 2 Tage Puffer, da Archiv oft leicht verzögert ist.
+    const archiveEnd = addDays(today, -2);
+    const safeEnd = endDate < archiveEnd ? endDate : archiveEnd;
+    if (safeEnd < startDate) {
+      $('analysis-info').textContent = '⚠️ Archivdaten noch nicht verfügbar (max. 2 Tage Verzögerung)';
+      $('analysis-info').style.display = 'block';
+      return;
+    }
     const u = new URL('https://archive-api.open-meteo.com/v1/archive');
     u.searchParams.set('latitude',   loc.lat);
     u.searchParams.set('longitude',  loc.lon);
     u.searchParams.set('start_date', startDate);
-    u.searchParams.set('end_date',   endDate);
+    u.searchParams.set('end_date',   safeEnd);
     u.searchParams.set('daily',      'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration');
     u.searchParams.set('timezone',   'auto');
     const r = await fetch(u);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const hist = await r.json();
-    renderSummary(hist, startDate, endDate);
+    renderSummary(hist, startDate, safeEnd);
   } catch(e) {
     $('analysis-info').textContent = '⚠️ Fehler beim Laden: ' + e.message;
     $('analysis-info').style.display = 'block';
@@ -1663,10 +1672,14 @@ function triggerAnalysis(startDate, endDate) {
   if (!startDate || !endDate || startDate > endDate) return;
   $('analysis-from').value = startDate;
   $('analysis-to').value   = endDate;
-  // Innerhalb geladener Daten → direkt berechnen
+  // Innerhalb geladener Forecast-Daten → direkt berechnen (kein API-Call nötig)
   if (data && startDate >= data.daily.time[0] && endDate <= data.daily.time[data.daily.time.length-1]) {
     renderSummary(data, startDate, endDate);
+  } else if (endDate >= today && data && startDate >= data.daily.time[0]) {
+    // Zeitraum endet heute oder in der Zukunft, Start liegt aber im Forecast → Cache reicht
+    renderSummary(data, startDate, endDate);
   } else {
+    // Historische Daten nötig → Archive API (kapped automatisch auf max. gestern-2)
     loadHistorical(startDate, endDate);
   }
 }
