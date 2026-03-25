@@ -885,7 +885,7 @@ async function loadWeather(pastDays = 0, targetRng = null) {
     u.searchParams.set('daily',           'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration,sunrise,sunset');
     u.searchParams.set('current_weather', 'true');
     u.searchParams.set('past_days',       String(pastDays));
-    u.searchParams.set('forecast_days',   '10');
+    u.searchParams.set('forecast_days',   '16');
     u.searchParams.set('timezone',        'auto');
 
     const r = await fetch(u);
@@ -1739,6 +1739,9 @@ function triggerAnalysis(startDate, endDate) {
 
   // Fall 3: Zeitraum liegt vollständig in der Zukunft jenseits des Forecasts
   } else if (data && startDate > lastForecast) {
+    $('summary-tiles').innerHTML = '';
+    $('export-csv-btn').disabled = true;
+    $('export-xlsx-btn').disabled = true;
     $('analysis-info').textContent =
       `Keine Daten verfügbar — Prognose endet am ${fmtDate(lastForecast)}.`;
     $('analysis-info').style.display = 'block';
