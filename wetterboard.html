@@ -1150,7 +1150,7 @@ function getHourly() {
       ? (t >= rng.startDT && t <= rng.endDT)
       : (d >= rng.start  && d <= rng.end);
     if (inRange) {
-      labels.push(`${d.slice(5).replace('-','.')} ${t.slice(11,16)}`);
+      labels.push(`${fmtDate(d).slice(0,5)} ${t.slice(11,16)}`);
       temp.push(data.hourly.temperature_2m[i]);
       precip.push(data.hourly.precipitation[i]);
       wind.push(data.hourly.windspeed_10m[i]);
@@ -1182,7 +1182,7 @@ const todayLine = {
   afterDraw(chart) {
     const { ctx, chartArea, scales, data: cd } = chart;
     if (!scales.x || !cd.labels) return;
-    const key = today.slice(5).replace('-','.');
+    const key = fmtDate(today).slice(0,5); // DD.MM
     const idx = cd.labels.findIndex(l => l.includes(key));
     if (idx < 0) return;
     const x = scales.x.getPixelForValue(cd.labels[idx]);
