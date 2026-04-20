@@ -629,7 +629,7 @@
       <div class="tile-value" id="t-precip" style="color:var(--teal)">—</div>
     </div>
     <div class="tile">
-      <div class="tile-label">🌧 Regen letzte 24h</div>
+      <div class="tile-label">🌧 Regen heute</div>
       <div class="tile-value" id="t-rain24" style="color:var(--teal)">—</div>
     </div>
     <div class="tile">
@@ -735,7 +735,7 @@
         <div id="cal-range"></div>
       </div>
       <div class="cal-btns">
-        <button id="heute-btn" title="Letzte & nächste 12 Stunden">⏱ Heute ±12h</button>
+        <button id="heute-btn" title="Heute 0:00–24:00">⏱ Heute</button>
         <button class="preset-btn active" data-days="5">5 T</button>
         <button class="preset-btn" data-days="10">10 T</button>
         <button class="preset-btn" data-days="16">16 T</button>
@@ -862,9 +862,9 @@ function addDays(dateStr, n) {
 // Liest den aktuellen rng-State und aktualisiert alle Buttons entsprechend.
 // Wird nach jeder Range-Änderung aufgerufen.
 function syncFilterButtons() {
-  const isHeute = !!rng.startDT;
-  const is5T    = !rng.startDT && rng.start === today && rng.end === addDays(today, 4);
-  const is10T   = !rng.startDT && rng.start === today && rng.end === addDays(today, 9);
+  const isHeute = rng.start === today && rng.end === today;
+  const is5T    = rng.start === today && rng.end === addDays(today, 4);
+  const is10T   = rng.start === today && rng.end === addDays(today, 9);
 
   $('heute-btn').classList.toggle('active', isHeute);
   document.querySelectorAll('.preset-btn').forEach(btn => {
@@ -1021,13 +1021,8 @@ function updateTiles() {
   const dryCol = dryDays <= 3 ? 'var(--green)' : dryDays <= 7 ? 'var(--yellow)' : 'var(--red)';
   html('t-dry', `<span style="color:${dryCol}">${dryDays}</span><span class="tile-unit"> Tage</span>`);
 
-  // Regen letzte 24h
-  let rain24 = null;
-  if (hi >= 0) {
-    const start24 = Math.max(0, hi - 23);
-    rain24 = data.hourly.precipitation.slice(start24, hi + 1)
-      .reduce((s, v) => s + (v ?? 0), 0);
-  }
+  // Regen heute (0:00–aktuell, aus Tages-Summe)
+  const rain24 = ti >= 0 ? data.daily.precipitation_sum[ti] : null;
   html('t-rain24', u(rain24 != null ? rain24.toFixed(1) : null, ' mm'));
 }
 
@@ -1104,29 +1099,10 @@ function updateRngInfo() {
     : `${fmtDate(rng.start)}  →  ${fmtDate(rng.end)}`;
 }
 
-// Heute ±12h Button
-function toLocalDT(d) {
-  const p = n => String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:00`;
-}
-function toLocalDate(d) {
-  const p = n => String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
-}
-
 $('heute-btn').addEventListener('click', () => {
   if (!data) return;
   chartData = data;
-  const now    = new Date();
-  const minus12 = new Date(now.getTime() - 12 * 3600 * 1000);
-  const plus12  = new Date(now.getTime() + 12 * 3600 * 1000);
-  rng = {
-    start:   toLocalDate(minus12),
-    end:     toLocalDate(plus12),
-    startDT: toLocalDT(minus12),
-    endDT:   toLocalDT(plus12),
-    sel: false
-  };
+  rng = { start: today, end: today, sel: false };
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   $('heute-btn').classList.add('active');
   renderCalendar();
@@ -1163,10 +1139,7 @@ function getHourly() {
     // Stundendaten verfügbar (Forecast)
     src.hourly.time.forEach((t,i) => {
       const d = t.split('T')[0];
-      const inRange = rng.startDT
-        ? (t >= rng.startDT && t <= rng.endDT)
-        : (d >= rng.start  && d <= rng.end);
-      if (inRange) {
+      if (d >= rng.start && d <= rng.end) {
         labels.push(`${fmtDate(d).slice(0,5)} ${t.slice(11,16)}`);
         temp.push(src.hourly.temperature_2m[i]);
         precip.push(src.hourly.precipitation[i]);
@@ -1571,8 +1544,8 @@ let autoRefreshTimer = null;
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = setInterval(() => {
-    // Aktuellen Range erhalten (außer heute±12h — der wird neu berechnet)
-    const savedRng = rng.startDT ? null : { start: rng.start, end: rng.end };
+    // Aktuellen Range erhalten
+    const savedRng = { start: rng.start, end: rng.end };
     loadWeather(loadedPastDays, savedRng);
   }, 30 * 60 * 1000);
 }
