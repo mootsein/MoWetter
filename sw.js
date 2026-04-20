@@ -4,7 +4,7 @@
 //   Statische Assets (Chart.js, manifest, icon) → Cache-first
 //   Open-Meteo API → immer live, kein Cache
 
-const CACHE = 'wetterboard-v2';
+const CACHE = 'wetterboard-v3';
 const STATIC = [
   './manifest.json',
   './icon.svg',
@@ -16,7 +16,7 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(STATIC))
   );
-  self.skipWaiting(); // neue SW-Version sofort aktivieren
+  // Kein skipWaiting() → neuer SW wartet, bis Nutzer aktiv neu lädt
 });
 
 // ── Activate: alte Caches löschen, sofort übernehmen ─────────────────────────
@@ -26,7 +26,14 @@ self.addEventListener('activate', e => {
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
-  self.clients.claim(); // alle offenen Tabs sofort übernehmen
+  self.clients.claim();
+});
+
+// ── Message: Nutzer hat "Jetzt aktualisieren" geklickt ───────────────────────
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
