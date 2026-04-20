@@ -147,11 +147,118 @@
       justify-content: flex-start;
       text-align: center;
     }
-    .tile-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; width: 100%; }
+    .tile-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; width: 100%; }
+    .tile-sub   { font-size: 10px; color: var(--muted); opacity: .6; margin-bottom: 8px; width: 100%; text-align: center; }
     .tile-value { font-size: 42px; font-weight: 300; line-height: 1.1; }
     .tile-value.sm  { font-size: 42px; font-weight: 300; }
     .tile-value.xs  { font-size: 22px; font-weight: 400; margin-top: 4px; }
     .tile-unit { font-size: 14px; color: var(--muted); margin-left: 4px; }
+    .tile-clickable { cursor: pointer; transition: border-color .15s, background .15s; }
+    .tile-clickable:hover { border-color: var(--teal); background: rgba(0,212,255,.05); }
+
+    /* ── Tile Popup ── */
+    #tile-popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    #tile-popup-overlay.open { display: flex; }
+    #tile-popup {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: min(1000px, 100%);
+      max-height: 90dvh;
+      overflow-y: auto;
+      box-shadow: 0 16px 64px rgba(0,0,0,.65);
+    }
+    #tile-popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 22px;
+    }
+    #tile-popup-title    { font-size: 20px; font-weight: 700; color: var(--text); }
+    #tile-popup-subtitle { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+    #tile-popup-close {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 8px 13px;
+      flex-shrink: 0;
+      transition: border-color .15s, color .15s;
+    }
+    #tile-popup-close:hover { color: var(--text); border-color: var(--text); }
+    #tile-popup-canvas-wrap { position: relative; height: clamp(300px, 52vh, 560px); }
+
+    #tile-popup-compare-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 7px; margin-bottom: 16px; }
+    #tile-popup-compare-grid.visible { display: grid; }
+    .cmp-tile {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .cmp-tile:hover  { border-color: var(--teal); background: rgba(0,212,255,.05); }
+    .cmp-tile.active { border-color: var(--teal); background: rgba(0,212,255,.09); }
+    .cmp-tile-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+    .cmp-row { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: 13px; font-weight: 600; }
+    .cmp-ist  { color: var(--teal); }
+    .cmp-soll { color: var(--yellow); opacity: .8; }
+    .cmp-unit { font-size: 10px; color: var(--muted); font-weight: 400; }
+    .cmp-delta { font-size: 11px; margin-top: 4px; color: var(--muted); }
+
+    #tile-popup-drag-handle { display: none; }
+
+    @media (min-width: 601px) {
+      #tile-popup { display: flex; flex-direction: column; }
+      #tile-popup-canvas-wrap { flex: 1; min-height: 200px; height: auto; }
+    }
+    #tile-popup-newwin {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 8px 10px;
+      flex-shrink: 0;
+      transition: border-color .15s, color .15s;
+      margin-right: 6px;
+    }
+    #tile-popup-newwin:hover { color: var(--teal); border-color: var(--teal); }
+
+    @media (max-width: 600px) {
+      #tile-popup-overlay { padding: 0; align-items: flex-end; justify-content: stretch; }
+      #tile-popup {
+        width: 100%;
+        border-radius: 18px 18px 0 0;
+        max-height: 88dvh;
+        padding: 20px 16px 36px;
+      }
+      #tile-popup-drag-handle {
+        display: block;
+        width: 40px; height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 0 auto 18px;
+      }
+      #tile-popup-title    { font-size: 17px; }
+      #tile-popup-subtitle { font-size: 12px; }
+      #tile-popup-canvas-wrap { height: clamp(260px, 48vh, 440px); }
+    }
 
     /* ── Panel ── */
     .panel { background:var(--panel); border:1px solid var(--border); border-radius:3px; padding:14px 16px; margin-bottom:8px; }
@@ -568,6 +675,27 @@
 </head>
 <body>
 
+<!-- Tile Detail Popup -->
+<div id="tile-popup-overlay">
+  <div id="tile-popup">
+    <div id="tile-popup-drag-handle"></div>
+    <div id="tile-popup-header">
+      <div>
+        <div id="tile-popup-title"></div>
+        <div id="tile-popup-subtitle"></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button id="tile-popup-newwin" title="In neuem Fenster öffnen">↗</button>
+        <button id="tile-popup-close">✕</button>
+      </div>
+    </div>
+    <div id="tile-popup-compare-grid"></div>
+    <div id="tile-popup-canvas-wrap">
+      <canvas id="tile-popup-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
 <!-- Update-Banner -->
 <div id="update-banner">
   <span>🔄 Neue Version verfügbar</span>
@@ -612,44 +740,53 @@
 
   <!-- Tiles -->
   <div id="tiles">
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="temp">
       <div class="tile-label">🌡️ Temperatur</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-temp" style="color:var(--orange)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="apparent">
       <div class="tile-label">🌡 Gefühlt</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-apparent" style="color:var(--yellow)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">↕️ Max / Min heute</div>
+      <div class="tile-sub">seit 0:00 Uhr</div>
       <div class="tile-value sm" id="t-maxmin" style="color:var(--text)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="precip">
       <div class="tile-label">💧 Niederschlag</div>
+      <div class="tile-sub">letzte 24h</div>
       <div class="tile-value" id="t-precip" style="color:var(--teal)">—</div>
     </div>
-    <div class="tile">
-      <div class="tile-label">🌧 Regen heute</div>
+    <div class="tile tile-clickable" data-popup="rain24">
+      <div class="tile-label">💧 Niederschlag heute</div>
+      <div class="tile-sub">seit 0:00 Uhr</div>
       <div class="tile-value" id="t-rain24" style="color:var(--teal)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="wind">
       <div class="tile-label">💨 Wind</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-wind" style="color:var(--green)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="hum">
       <div class="tile-label">💦 Luftfeuchte</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-hum" style="color:var(--purple)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="cloud">
       <div class="tile-label">☁️ Bewölkung</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-cloud" style="color:var(--muted)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">🌤 Wetter</div>
       <div class="tile-value xs" id="t-wmo" style="color:var(--blue)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="uv">
       <div class="tile-label">🔆 UV-Index</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-uv" style="color:var(--yellow)">—</div>
     </div>
     <div class="tile">
@@ -657,27 +794,32 @@
       <div class="tile-value xs" id="t-sun" style="color:var(--orange)">—</div>
     </div>
     <div class="tile">
-      <div class="tile-label">🌿 ET₀ heute</div>
+      <div class="tile-label">🌿 ET₀</div>
+      <div class="tile-sub">heute</div>
       <div class="tile-value" id="t-et0" style="color:var(--green)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">⚖️ Wasserbilanz</div>
+      <div class="tile-sub">heute</div>
       <div class="tile-value sm" id="t-wb" style="color:var(--yellow)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="sm" >
       <div class="tile-label">🟤 Bodenfeuchte 0–1cm</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-sm" style="color:var(--orange)">—</div>
     </div>
-    <div class="tile" id="tile-frost">
+    <div class="tile tile-clickable" id="tile-frost" data-popup="frost">
       <div class="tile-label">🧊 Frostwarnung</div>
+      <div class="tile-sub">nächste 24h</div>
       <div class="tile-value xs" id="t-frost" style="color:var(--green)">—</div>
     </div>
     <div class="tile">
       <div class="tile-label">🏜 Trockenstreifen</div>
       <div class="tile-value" id="t-dry" style="color:var(--yellow)">—</div>
     </div>
-    <div class="tile">
+    <div class="tile tile-clickable" data-popup="st">
       <div class="tile-label">🌡 Bodentemp. 0cm</div>
+      <div class="tile-sub">jetzt</div>
       <div class="tile-value" id="t-st" style="color:var(--purple)">—</div>
     </div>
   </div>
@@ -719,6 +861,7 @@
         <div id="export-bar">
           <button class="export-btn" id="export-csv-btn" disabled>↓ CSV</button>
           <button class="export-btn" id="export-xlsx-btn" disabled>↓ Excel</button>
+          <button class="export-btn" id="soll-ist-btn" disabled style="margin-left:auto;border-color:var(--teal);color:var(--teal)">⚖ Soll / Ist</button>
         </div>
       </div>
     </div>
@@ -738,7 +881,7 @@
         <button id="heute-btn" title="Heute 0:00–24:00">⏱ Heute</button>
         <button class="preset-btn active" data-days="5">5 T</button>
         <button class="preset-btn" data-days="10">10 T</button>
-        <button class="preset-btn" data-days="16">16 T</button>
+        <button class="preset-btn" data-days="14">14 T</button>
         <button class="reset-btn" id="cal-reset-btn" title="Zeitraum zurücksetzen">✕</button>
       </div>
     </div>
@@ -873,6 +1016,361 @@ function syncFilterButtons() {
   });
 }
 
+// ── Tile Popup ────────────────────────────────────────────────────────────────
+let tilePopupChart = null;
+
+function openTilePopup(title, subtitle, labels, datasets, chartType) {
+  $('tile-popup-title').textContent    = title;
+  $('tile-popup-subtitle').textContent = subtitle;
+  $('tile-popup-compare-grid').classList.remove('visible');
+  $('tile-popup-compare-grid').innerHTML = '';
+  _newWindowData = { title, subtitle, type: chartType, labels, datasets, isSollIst: false };
+  if (tilePopupChart) { tilePopupChart.destroy(); tilePopupChart = null; }
+  const tc = window._chartTextColor  || '#8fa3b8';
+  const gc = window._chartGridColor  || '#22263a';
+  const tb = window._chartTooltipBg  || '#23262e';
+  const tbc= window._chartTooltipBorder || '#22263a';
+  const bodyCol = isDark ? '#f1f5f9' : '#1e2533';
+  tilePopupChart = new Chart($('tile-popup-canvas'), {
+    type: chartType,
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 250 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: datasets.length > 1, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, color: tc } },
+        tooltip: { backgroundColor: tb, borderColor: tbc, borderWidth: 1, titleColor: tc, bodyColor: bodyCol, padding: 9 }
+      },
+      scales: {
+        x: { grid: { color: gc }, ticks: { color: tc, font: { size: 10 }, maxRotation: 45, maxTicksLimit: 12 } },
+        y: { grid: { color: gc }, ticks: { color: tc, font: { size: 11 } } }
+      }
+    }
+  });
+  $('tile-popup-overlay').classList.add('open');
+}
+
+function closeTilePopup() {
+  $('tile-popup-overlay').classList.remove('open');
+  if (tilePopupChart) { tilePopupChart.destroy(); tilePopupChart = null; }
+}
+$('tile-popup-close').addEventListener('click', closeTilePopup);
+$('tile-popup-overlay').addEventListener('click', e => { if (e.target === $('tile-popup-overlay')) closeTilePopup(); });
+
+// Swipe-down zum Schließen (Mobile)
+let _swipeY0 = 0;
+$('tile-popup').addEventListener('touchstart', e => { _swipeY0 = e.touches[0].clientY; }, { passive: true });
+$('tile-popup').addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _swipeY0 > 60) closeTilePopup(); }, { passive: true });
+
+// Neues Fenster
+let _newWindowData = null; // { title, subtitle, type, labels, datasets, isSollIst, metrics }
+
+function openPopupInNewWindow() {
+  if (!_newWindowData) return;
+  const d = _newWindowData;
+  const isDarkMode = !document.body.classList.contains('light');
+  const bg    = isDarkMode ? '#0f1117' : '#f0f4f8';
+  const panel = isDarkMode ? '#1a1d27' : '#ffffff';
+  const text  = isDarkMode ? '#f1f5f9' : '#1e2533';
+  const muted = isDarkMode ? '#8fa3b8' : '#5a6a82';
+  const border= isDarkMode ? '#22263a' : '#dde3ec';
+  const grid  = isDarkMode ? '#22263a' : '#dde3ec';
+  const ttbg  = isDarkMode ? '#23262e' : '#ffffff';
+
+  const chartJs = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+
+  const baseOpt = (yUnit) => JSON.stringify({
+    responsive:true, maintainAspectRatio:false, animation:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:true,position:'top',labels:{boxWidth:12,font:{size:12},color:muted}},
+      tooltip:{backgroundColor:ttbg,borderColor:border,borderWidth:1,titleColor:muted,bodyColor:text,padding:9}
+    },
+    scales:{
+      x:{grid:{color:grid},ticks:{color:muted,font:{size:11},maxRotation:45,maxTicksLimit:14}},
+      y:{grid:{color:grid},ticks:{color:muted,font:{size:12},callback:'__CB__'+yUnit+'__CB__'}}
+    }
+  }).replace(/"'__CB__(.+?)__CB__'"/g, `function(v){return v+' $1'}`);
+
+  const btnStyle = `background:transparent;border:1px solid ${border};border-radius:6px;color:${muted};padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600;transition:border-color .15s,color .15s`;
+
+  let body = '';
+  if (d.isSollIst) {
+    const gridCards = d.metrics.map((m,i) => `
+      <div class="gc" data-idx="${i}" style="background:${panel};border:1px solid ${border};border-radius:8px;padding:16px;cursor:pointer">
+        <div style="font-size:12px;font-weight:700;margin-bottom:10px;pointer-events:none">${m.label} <span style="font-size:10px;color:${muted};font-weight:400">${m.unit}</span></div>
+        <div style="position:relative;height:190px;pointer-events:none"><canvas id="gc${i}"></canvas></div>
+      </div>`).join('');
+
+    body = `
+    <div id="grid-view" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:12px">${gridCards}</div>
+
+    <div id="detail-view" style="display:none;flex-direction:column;height:calc(100vh - 112px)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button style="${btnStyle}" onclick="backToGrid()">← Übersicht</button>
+        <span id="det-title" style="font-size:15px;font-weight:700;flex:1"></span>
+        <span id="det-pos" style="color:${muted};font-size:12px"></span>
+        <button style="${btnStyle}" onclick="nav(-1)">‹ Zurück</button>
+        <button style="${btnStyle}" onclick="nav(+1)">Weiter ›</button>
+      </div>
+      <div style="flex:1;position:relative;min-height:0"><canvas id="det-canvas"></canvas></div>
+    </div>
+
+    <script>
+    const M=${JSON.stringify(d.metrics)}, L=${JSON.stringify(d.labels)};
+    const C={bg:'${bg}',panel:'${panel}',text:'${text}',muted:'${muted}',border:'${border}',grid:'${grid}',ttbg:'${ttbg}'};
+    const gridCharts=[], ds=m=>[
+      {label:'Ist (Archiv)', data:m.ist, borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.1)',borderWidth:2,pointRadius:3,tension:.3,fill:false},
+      {label:'Soll (Modell)',data:m.soll,borderColor:'#facc15',backgroundColor:'rgba(250,204,21,.1)',borderWidth:2,pointRadius:3,tension:.3,fill:false,borderDash:[5,4]}
+    ];
+    const opts=(unit,big)=>({responsive:true,maintainAspectRatio:false,animation:{duration:big?300:0},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:big?12:10},color:C.muted}},
+               tooltip:{backgroundColor:C.ttbg,borderColor:C.border,borderWidth:1,titleColor:C.muted,bodyColor:C.text,padding:8}},
+      scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,font:{size:big?11:9},maxRotation:45,maxTicksLimit:big?14:8}},
+              y:{grid:{color:C.grid},ticks:{color:C.muted,font:{size:big?11:10},callback:v=>v+(unit?' '+unit:'')}}}});
+
+    M.forEach((m,i)=>{
+      gridCharts.push(new Chart(document.getElementById('gc'+i),{type:'line',data:{labels:L,datasets:ds(m)},options:opts(m.unit,false)}));
+      document.querySelectorAll('.gc')[i].addEventListener('click',()=>showDetail(i));
+      document.querySelectorAll('.gc')[i].addEventListener('mouseenter',function(){this.style.borderColor='#00d4ff';});
+      document.querySelectorAll('.gc')[i].addEventListener('mouseleave',function(){this.style.borderColor='${border}';});
+    });
+
+    let cur=0, detChart=null;
+    function showDetail(idx){
+      cur=idx; const m=M[idx];
+      document.getElementById('grid-view').style.display='none';
+      document.getElementById('detail-view').style.display='flex';
+      document.getElementById('det-title').textContent=m.label+' · '+m.unit;
+      document.getElementById('det-pos').textContent=(idx+1)+' / '+M.length;
+      if(detChart){detChart.destroy();detChart=null;}
+      detChart=new Chart(document.getElementById('det-canvas'),{type:'line',data:{labels:L,datasets:ds(m)},options:opts(m.unit,true)});
+    }
+    function backToGrid(){
+      document.getElementById('detail-view').style.display='none';
+      document.getElementById('grid-view').style.display='grid';
+      if(detChart){detChart.destroy();detChart=null;}
+    }
+    function nav(dir){showDetail((cur+dir+M.length)%M.length);}
+    document.addEventListener('keydown',e=>{
+      if(document.getElementById('detail-view').style.display==='none')return;
+      if(e.key==='ArrowLeft')nav(-1);
+      else if(e.key==='ArrowRight')nav(+1);
+      else if(e.key==='Escape')backToGrid();
+    });
+    <\/script>`;
+  } else {
+    body = `<div style="position:relative;height:calc(100vh - 110px)"><canvas id="c0"></canvas></div>
+            <script>new Chart(document.getElementById('c0'),{type:${JSON.stringify(d.type)},data:{labels:${JSON.stringify(d.labels)},datasets:${JSON.stringify(d.datasets)}},options:${baseOpt('')}});<\/script>`;
+  }
+
+  const win = window.open('', '_blank', 'width=1100,height=750');
+  if (!win) { alert('Popup-Blocker aktiv — bitte erlauben.'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/>
+    <title>${d.title}</title>
+    <script src="${chartJs}"><\/script>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{background:${bg};color:${text};font-family:'Inter',Arial,sans-serif;font-size:13px;padding:20px}
+      #win-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:16px}
+      #win-header-text h1{font-size:18px;font-weight:700;margin-bottom:4px}
+      #win-header-text p{color:${muted};font-size:12px}
+      #close-btn{background:transparent;border:1px solid ${border};border-radius:6px;color:${muted};padding:8px 16px;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0}
+      #close-btn:hover{border-color:${text};color:${text}}
+    </style>
+    </head><body>
+    <div id="win-header">
+      <div id="win-header-text"><h1>${d.title}</h1><p>${d.subtitle}</p></div>
+      <button id="close-btn" onclick="window.close()">✕ Fenster schließen</button>
+    </div>
+    ${body}</body></html>`);
+  win.document.close();
+}
+$('tile-popup-newwin').addEventListener('click', openPopupInNewWindow);
+
+function showTilePopup(key) {
+  if (!data) return;
+  const h24 = getLast24hRange();
+  const n24 = getNext24hRange();
+  const tod = getTodayRange();
+  const sliceH = (field, r) => r ? (data.hourly[field]?.slice(r.start, r.end) ?? []) : [];
+  const labH   = r => r ? data.hourly.time.slice(r.start, r.end).map(t => t.slice(11,16)) : [];
+
+  const dsLine = (label, field, range, color, colorAlpha) => ({
+    label, data: sliceH(field, range),
+    borderColor: color, backgroundColor: colorAlpha,
+    borderWidth: 2, pointRadius: 0, tension: .3, fill: true
+  });
+  const dsBar = (label, field, range, color, colorAlpha) => ({
+    label, data: sliceH(field, range),
+    backgroundColor: colorAlpha, borderColor: color, borderWidth: 1
+  });
+
+  const configs = {
+    temp:     { title:'🌡️ Temperatur',         sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('°C','temperature_2m',h24,'#fb923c','rgba(251,146,60,.15)')],       type:'line' },
+    apparent: { title:'🌡 Gefühlte Temperatur', sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('°C','apparent_temperature',h24,'#facc15','rgba(250,204,21,.15)')],  type:'line' },
+    wind:     { title:'💨 Wind',                sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('km/h','windspeed_10m',h24,'#34d399','rgba(52,211,153,.15)')],        type:'line' },
+    hum:      { title:'💦 Luftfeuchte',         sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('%','relativehumidity_2m',h24,'#a78bfa','rgba(167,139,250,.15)')],   type:'line' },
+    cloud:    { title:'☁️ Bewölkung',           sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('%','cloudcover',h24,'#8fa3b8','rgba(143,163,184,.15)')],             type:'line' },
+    uv:       { title:'🔆 UV-Index',            sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('','uv_index',h24,'#facc15','rgba(250,204,21,.15)')],                type:'line' },
+    sm:       { title:'🟤 Bodenfeuchte 0–1cm',  sub:'Stundenverlauf letzte 24h',      labels:labH(h24),
+      ds:[{ label:'Vol.%', data: sliceH('soil_moisture_0_to_1cm',h24).map(v=>v!=null?+(v*100).toFixed(2):null),
+            borderColor:'#fb923c', backgroundColor:'rgba(251,146,60,.15)', borderWidth:2, pointRadius:0, tension:.3, fill:true }], type:'line' },
+    st:       { title:'🌡 Bodentemp. 0cm',      sub:'Stundenverlauf letzte 24h',      labels:labH(h24), ds:[dsLine('°C','soil_temperature_0cm',h24,'#a78bfa','rgba(167,139,250,.15)')], type:'line' },
+    precip:   { title:'💧 Niederschlag',        sub:'Stündliche Mengen letzte 24h',   labels:labH(h24), ds:[dsBar('mm','precipitation',h24,'#00d4ff','rgba(0,212,255,.55)')],            type:'bar'  },
+    rain24:   { title:'🌧 Regen heute',         sub:'Stündliche Mengen seit 0:00 Uhr',labels:labH(tod), ds:[dsBar('mm','precipitation',tod,'#00d4ff','rgba(0,212,255,.55)')],            type:'bar'  },
+    frost:    {
+      title:'🧊 Frostwarnung', sub:'Temperaturverlauf nächste 24h', labels:labH(n24), type:'line',
+      ds:[
+        dsLine('Temp. °C','temperature_2m',n24,'#60a5fa','rgba(96,165,250,.15)'),
+        { label:'0°C', data:Array(n24 ? n24.end-n24.start : 0).fill(0),
+          borderColor:'rgba(96,165,250,.45)', borderDash:[5,5], borderWidth:1, pointRadius:0, fill:false }
+      ]
+    }
+  };
+
+  const cfg = configs[key];
+  if (!cfg) return;
+  openTilePopup(cfg.title, cfg.sub, cfg.labels, cfg.ds, cfg.type);
+}
+
+document.querySelectorAll('[data-popup]').forEach(tile => {
+  tile.addEventListener('click', () => showTilePopup(tile.dataset.popup));
+});
+
+// ── Soll / Ist Vergleich ─────────────────────────────────────────────────────
+async function loadSollIst() {
+  if (!window._lastAnalysisData || !window._lastAnalysisRange) return;
+  const { start, end } = window._lastAnalysisRange;
+  const btn = $('soll-ist-btn');
+  btn.textContent = '⏳'; btn.disabled = true;
+  try {
+    const daysBack = Math.ceil((new Date(today + 'T12:00') - new Date(start + 'T12:00')) / 864e5) + 1;
+    const u = new URL('https://api.open-meteo.com/v1/forecast');
+    u.searchParams.set('latitude',      loc.lat);
+    u.searchParams.set('longitude',     loc.lon);
+    u.searchParams.set('daily',         'precipitation_sum,temperature_2m_max,temperature_2m_min,windspeed_10m_max,et0_fao_evapotranspiration');
+    u.searchParams.set('past_days',     String(Math.min(daysBack, 92)));
+    u.searchParams.set('forecast_days', '1');
+    u.searchParams.set('timezone',      'auto');
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const model = await r.json();
+
+    const arch = window._lastAnalysisData.daily;
+    const labels = [];
+    const iPrec=[], sPrec=[], iTmax=[], sTmax=[], iTmin=[], sTmin=[],
+          iEt0=[],  sEt0=[],  iWind=[], sWind=[];
+
+    arch.time.forEach((d, i) => {
+      if (d < start || d > end) return;
+      const mi = model.daily.time.indexOf(d);
+      labels.push(fmtDate(d).slice(0, 5));
+      const get = (arr, key) => arr[key]?.[i] ?? null;
+      const mod = (key) => mi >= 0 ? (model.daily[key]?.[mi] ?? null) : null;
+      iPrec.push(get(arch,'precipitation_sum'));       sPrec.push(mod('precipitation_sum'));
+      iTmax.push(get(arch,'temperature_2m_max'));      sTmax.push(mod('temperature_2m_max'));
+      iTmin.push(get(arch,'temperature_2m_min'));      sTmin.push(mod('temperature_2m_min'));
+      iEt0.push(get(arch,'et0_fao_evapotranspiration'));sEt0.push(mod('et0_fao_evapotranspiration'));
+      iWind.push(get(arch,'windspeed_10m_max'));       sWind.push(mod('windspeed_10m_max'));
+    });
+
+    const avg2 = (a,b) => a.map((v,i) => v!=null&&b[i]!=null ? +((v+b[i])/2).toFixed(1) : null);
+    const wbArr = (p,e) => p.map((v,i) => v!=null&&e[i]!=null ? +(v-e[i]).toFixed(1) : null);
+    const iAvgT = avg2(iTmax,iTmin), sAvgT = avg2(sTmax,sTmin);
+    const iWb   = wbArr(iPrec,iEt0), sWb  = wbArr(sPrec,sEt0);
+
+    const sumF  = a => a.filter(v=>v!=null).reduce((s,v)=>s+v,0);
+    const avgF  = a => { const f=a.filter(v=>v!=null); return f.length?sumF(f)/f.length:null; };
+    const maxF  = a => { const f=a.filter(v=>v!=null); return f.length?Math.max(...f):null; };
+    const minF  = a => { const f=a.filter(v=>v!=null); return f.length?Math.min(...f):null; };
+    const f1    = (v,d=1) => v!=null ? (+v).toFixed(d) : '—';
+
+    const metrics = [
+      { key:'prec', label:'🌧 Niederschlag', unit:'mm',   dec:1, iV:sumF(iPrec),  sV:sumF(sPrec),  ist:iPrec,  soll:sPrec  },
+      { key:'avgT', label:'🌡 Ø Temperatur', unit:'°C',   dec:1, iV:avgF(iAvgT),  sV:avgF(sAvgT),  ist:iAvgT,  soll:sAvgT  },
+      { key:'tmax', label:'↑ Temp Max',      unit:'°C',   dec:1, iV:maxF(iTmax),  sV:maxF(sTmax),  ist:iTmax,  soll:sTmax  },
+      { key:'tmin', label:'↓ Temp Min',      unit:'°C',   dec:1, iV:minF(iTmin),  sV:minF(sTmin),  ist:iTmin,  soll:sTmin  },
+      { key:'et0',  label:'🌿 ET₀',          unit:'mm',   dec:1, iV:sumF(iEt0),   sV:sumF(sEt0),   ist:iEt0,   soll:sEt0   },
+      { key:'wb',   label:'⚖️ Wasserbilanz', unit:'mm',   dec:1, iV:sumF(iWb),    sV:sumF(sWb),    ist:iWb,    soll:sWb    },
+      { key:'wind', label:'💨 Ø Wind',       unit:'km/h', dec:0, iV:avgF(iWind),  sV:avgF(sWind),  ist:iWind,  soll:sWind  },
+    ];
+
+    const grid = $('tile-popup-compare-grid');
+    grid.innerHTML = metrics.map(m => {
+      const delta = (m.iV != null && m.sV != null) ? +(m.iV - m.sV).toFixed(m.dec) : null;
+      const dCol  = delta == null ? 'var(--muted)'
+                  : Math.abs(delta) < (m.unit==='km/h'?2:.5) ? 'var(--green)'
+                  : Math.abs(delta) < (m.unit==='km/h'?10:5) ? 'var(--yellow)' : 'var(--red)';
+      return `<div class="cmp-tile" data-key="${m.key}">
+        <div class="cmp-tile-label">${m.label}</div>
+        <div class="cmp-row">
+          <span class="cmp-ist">${f1(m.iV,m.dec)}<span class="cmp-unit"> ${m.unit}</span></span>
+          <span class="cmp-soll">${f1(m.sV,m.dec)}<span class="cmp-unit"> ${m.unit}</span></span>
+        </div>
+        <div class="cmp-delta">Δ <span style="color:${dCol}">${delta!=null?(delta>0?'+':'')+delta+'':' —'}</span> ${delta!=null?m.unit:''}</div>
+      </div>`;
+    }).join('');
+    grid.classList.add('visible');
+
+    // Chart für gewählte Metrik rendern
+    let activeChart = null;
+    function drawMetric(key) {
+      grid.querySelectorAll('.cmp-tile').forEach(el => el.classList.toggle('active', el.dataset.key === key));
+      const m  = metrics.find(x => x.key === key);
+      const tc = window._chartTextColor   || '#8fa3b8';
+      const gc = window._chartGridColor   || '#22263a';
+      const tb = window._chartTooltipBg   || '#23262e';
+      const tbc= window._chartTooltipBorder || '#22263a';
+      const bodyCol = isDark ? '#f1f5f9' : '#1e2533';
+      if (tilePopupChart) { tilePopupChart.destroy(); tilePopupChart = null; }
+      tilePopupChart = new Chart($('tile-popup-canvas'), {
+        type: 'line',
+        data: { labels, datasets: [
+          { label:`Ist (Archiv)`,  data:m.ist,  borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.1)',  borderWidth:2, pointRadius:3, tension:.3, fill:false },
+          { label:`Soll (Modell)`, data:m.soll, borderColor:'#facc15', backgroundColor:'rgba(250,204,21,.1)', borderWidth:2, pointRadius:3, tension:.3, fill:false, borderDash:[5,4] }
+        ]},
+        options: {
+          responsive:true, maintainAspectRatio:false, animation:{duration:200},
+          interaction:{mode:'index',intersect:false},
+          plugins:{
+            legend:{display:true,position:'top',labels:{boxWidth:12,font:{size:11},color:tc}},
+            tooltip:{backgroundColor:tb,borderColor:tbc,borderWidth:1,titleColor:tc,bodyColor:bodyCol,padding:9}
+          },
+          scales:{
+            x:{grid:{color:gc},ticks:{color:tc,font:{size:10},maxRotation:45,maxTicksLimit:14}},
+            y:{grid:{color:gc},ticks:{color:tc,font:{size:11},callback:v=>v+' '+m.unit}}
+          }
+        }
+      });
+    }
+
+    grid.querySelectorAll('.cmp-tile').forEach(el =>
+      el.addEventListener('click', () => drawMetric(el.dataset.key))
+    );
+
+    _newWindowData = {
+      title: '⚖ Soll / Ist Vergleich',
+      subtitle: `${fmtDate(start)} → ${fmtDate(end)}  ·  Ist = Archiv  ·  Soll = Modell`,
+      isSollIst: true, labels,
+      metrics: metrics.map(m => ({ label: m.label, unit: m.unit, ist: m.ist, soll: m.soll }))
+    };
+    $('tile-popup-title').textContent    = _newWindowData.title;
+    $('tile-popup-subtitle').textContent = _newWindowData.subtitle;
+    $('tile-popup-overlay').classList.add('open');
+    drawMetric('prec');
+
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+  } finally {
+    btn.textContent = '⚖ Soll / Ist'; btn.disabled = false;
+  }
+}
+$('soll-ist-btn').addEventListener('click', loadSollIst);
+
 async function loadWeather(pastDays = 0, targetRng = null) {
   hd('empty'); hd('dashboard'); hd('error-bar');
   sh('loading');
@@ -886,8 +1384,8 @@ async function loadWeather(pastDays = 0, targetRng = null) {
     u.searchParams.set('hourly',          'temperature_2m,apparent_temperature,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,cloudcover,uv_index,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_temperature_0cm');
     u.searchParams.set('daily',           'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration,sunrise,sunset');
     u.searchParams.set('current_weather', 'true');
-    u.searchParams.set('past_days',       String(pastDays));
-    u.searchParams.set('forecast_days',   '16');
+    u.searchParams.set('past_days',       String(Math.max(pastDays, 2)));
+    u.searchParams.set('forecast_days',   '14');
     u.searchParams.set('timezone',        'auto');
 
     const r = await fetch(u);
@@ -929,6 +1427,27 @@ function updateLocInfo() {
   startAutoRefresh();
 }
 
+// ── Zeitbereich-Helfer ────────────────────────────────────────────────────────
+function getLast24hRange() {
+  const nowH = new Date().getHours();
+  const hi = data.hourly.time.findIndex(t => t.startsWith(today) && parseInt(t.slice(11,13)) === nowH);
+  if (hi < 0) return null;
+  return { start: Math.max(0, hi - 23), end: hi + 1 };
+}
+function getNext24hRange() {
+  const nowH = new Date().getHours();
+  const hi = data.hourly.time.findIndex(t => t.startsWith(today) && parseInt(t.slice(11,13)) === nowH);
+  if (hi < 0) return null;
+  return { start: hi, end: Math.min(data.hourly.time.length, hi + 25) };
+}
+function getTodayRange() {
+  const startIdx = data.hourly.time.findIndex(t => t.startsWith(today));
+  const nowH = new Date().getHours();
+  const endIdx = data.hourly.time.findIndex(t => t.startsWith(today) && parseInt(t.slice(11,13)) === nowH);
+  if (startIdx < 0 || endIdx < 0) return null;
+  return { start: startIdx, end: endIdx + 1 };
+}
+
 // ── Tiles ─────────────────────────────────────────────────────────────────────
 function updateTiles() {
   const cur  = data.current_weather;
@@ -946,7 +1465,9 @@ function updateTiles() {
   html('t-maxmin',   ti>=0
     ? `<span style="color:var(--red)">${data.daily.temperature_2m_max[ti]?.toFixed(0)}°</span>&nbsp;/&nbsp;<span style="color:var(--blue)">${data.daily.temperature_2m_min[ti]?.toFixed(0)}°</span>`
     : '—');
-  html('t-precip',   u(ti>=0 ? data.daily.precipitation_sum[ti]?.toFixed(1) : null, ' mm'));
+  const h24r = getLast24hRange();
+  const precip24h = h24r ? data.hourly.precipitation?.slice(h24r.start, h24r.end).reduce((s,v)=>s+(v??0),0) : null;
+  html('t-precip', u(precip24h != null ? precip24h.toFixed(1) : null, ' mm'));
 
   // Wind mit Richtung
   const windDir_  = hi>=0 ? data.hourly.winddirection_10m?.[hi] : (cur?.winddirection ?? null);
@@ -985,14 +1506,16 @@ function updateTiles() {
   html('t-sm',  u(sm0 != null ? (sm0*100).toFixed(1) : null, ' Vol.%'));
   html('t-st',  u(st0?.toFixed(1), ' °C'));
 
-  // Frostwarnung: Schwelle 0°C (Gefahr) / -2°C (Frost), mit Temperaturanzeige
-  const tMin = ti>=0 ? data.daily.temperature_2m_min[ti] : null;
-  const refTemp = tMin ?? st0; // Lufttemp bevorzugt, sonst Bodentemp
+  // Frostwarnung: nächste 24h Minimum
+  const n24r = getNext24hRange();
+  const next24temps = n24r ? (data.hourly.temperature_2m?.slice(n24r.start, n24r.end).filter(v => v != null) ?? []) : [];
+  const minNext24 = next24temps.length ? Math.min(...next24temps) : null;
+  const refTemp = minNext24 ?? st0;
   const tempStr = refTemp != null
     ? `<br><span style="font-size:13px;color:var(--muted)">min. ${refTemp.toFixed(1)}°C</span>`
     : '';
-  const hardFrost = (tMin != null && tMin < -2) || (st0 != null && st0 < -2);
-  const frostRisk = !hardFrost && ((tMin != null && tMin < 0) || (st0 != null && st0 < 0));
+  const hardFrost = (minNext24 != null && minNext24 < -2) || (st0 != null && st0 < -2);
+  const frostRisk = !hardFrost && ((minNext24 != null && minNext24 < 0) || (st0 != null && st0 < 0));
   const tileFrost = document.getElementById('tile-frost');
   if (hardFrost) {
     tileFrost.style.borderColor = 'var(--blue)';
@@ -1552,6 +2075,20 @@ function startAutoRefresh() {
 
 // ── Zeitraum-Analyse ──────────────────────────────────────────────────────────
 
+function injectDailySoilTemp(srcData) {
+  if (srcData.daily.soil_temperature_avg) return;
+  const hourlyKey = srcData.hourly?.soil_temperature_0cm        ? 'soil_temperature_0cm'
+                  : srcData.hourly?.soil_temperature_0_to_7cm   ? 'soil_temperature_0_to_7cm'
+                  : null;
+  if (!hourlyKey) return;
+  srcData.daily.soil_temperature_avg = srcData.daily.time.map(date => {
+    const vs = srcData.hourly.time
+      .map((t, i) => t.startsWith(date) ? srcData.hourly[hourlyKey][i] : null)
+      .filter(v => v != null);
+    return vs.length ? +(vs.reduce((s, v) => s + v, 0) / vs.length).toFixed(1) : null;
+  });
+}
+
 function calcSummary(srcData, startDate, endDate) {
   const d = srcData.daily;
   const idx = [];
@@ -1568,6 +2105,7 @@ function calcSummary(srcData, startDate, endDate) {
   const precips  = vals('precipitation_sum');
   const et0s     = vals('et0_fao_evapotranspiration');
   const winds    = vals('windspeed_10m_max');
+  const soilTs   = vals('soil_temperature_avg');
 
   // Ø Temp = Mittel aus (max+min)/2 pro Tag
   const meanArr  = idx.map(i => {
@@ -1591,6 +2129,7 @@ function calcSummary(srcData, startDate, endDate) {
     avgWind:      avg(winds),
     rainDays:     precips.filter(p => p >= 1).length,
     frostDays:    minArr.filter(t => t < 0).length,
+    avgSoilT:     avg(soilTs),
   };
 }
 
@@ -1599,11 +2138,16 @@ function renderSummary(srcData, startDate, endDate) {
   stileCharts.forEach(c => { try { c.destroy(); } catch {} });
   stileCharts = [];
 
-  // Datenquelle für Export merken + Export-Buttons aktivieren
-  window._lastAnalysisData = srcData;
+  // Datenquelle für Export + Soll/Ist merken
+  window._lastAnalysisData  = srcData;
+  window._lastAnalysisRange = { start: startDate, end: endDate };
   $('export-csv-btn').disabled  = false;
   $('export-xlsx-btn').disabled = false;
+  // Soll/Ist nur für vergangene Zeiträume innerhalb 92 Tage
+  const daysBackSI = Math.ceil((new Date(today + 'T12:00') - new Date(startDate + 'T12:00')) / 864e5) + 1;
+  $('soll-ist-btn').disabled = !(endDate < today && daysBackSI <= 92);
 
+  injectDailySoilTemp(srcData);
   const s = calcSummary(srcData, startDate, endDate);
   if (!s) { $('summary-tiles').innerHTML = '<span style="color:var(--muted);font-size:12px">Keine Daten für diesen Zeitraum.</span>'; return; }
 
@@ -1614,7 +2158,7 @@ function renderSummary(srcData, startDate, endDate) {
   $('analysis-info').style.display = 'block';
 
   // Build daily arrays for sparklines
-  const days = [], precD = [], maxT = [], minT = [], et0D = [], windD = [];
+  const days = [], precD = [], maxT = [], minT = [], et0D = [], windD = [], soilD = [];
   srcData.daily.time.forEach((d, i) => {
     if (d < startDate || d > endDate) return;
     days.push(fmtDate(d).slice(0,5)); // DD.MM
@@ -1623,6 +2167,7 @@ function renderSummary(srcData, startDate, endDate) {
     minT.push(srcData.daily.temperature_2m_min?.[i] ?? null);
     et0D.push(srcData.daily.et0_fao_evapotranspiration?.[i] ?? null);
     windD.push(srcData.daily.windspeed_10m_max?.[i] ?? null);
+    soilD.push(srcData.daily.soil_temperature_avg?.[i] ?? null);
   });
   const avgT = maxT.map((mx, i) => mx != null && minT[i] != null ? +((mx + minT[i]) / 2).toFixed(1) : null);
   const wbD  = precD.map((p, i) => et0D[i] != null ? +(p - et0D[i]).toFixed(1) : null);
@@ -1637,6 +2182,7 @@ function renderSummary(srcData, startDate, endDate) {
     { label: '💧 Regentage ≥1mm',    val: s.rainDays,                                     unit: 'T',    col: 'var(--teal)',   series: precD, type:'bar',  color:'#00d4ff', mode:'rain' },
     { label: '🧊 Frosttage <0°',     val: s.frostDays,                                    unit: 'T',    col: 'var(--blue)',   series: minT,  type:'line', color:'#60a5fa', mode:'temp' },
     { label: '💨 Ø Wind',            val: fmt(s.avgWind,0),                               unit: 'km/h', col: 'var(--green)',  series: windD, type:'line', color:'#34d399', mode:'wind' },
+    { label: '🌡 Ø Bodentemp. 0cm', val: fmt(s.avgSoilT,1),                              unit: '°C',   col: 'var(--purple)', series: soilD, type:'line', color:'#a78bfa', mode:'temp' },
   ];
 
   $('summary-tiles').innerHTML = tiles.map((t, i) => `
@@ -1709,10 +2255,12 @@ async function loadHistorical(startDate, endDate) {
     u.searchParams.set('start_date', startDate);
     u.searchParams.set('end_date',   safeEnd);
     u.searchParams.set('daily',      'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,et0_fao_evapotranspiration');
+    u.searchParams.set('hourly',     'soil_temperature_0_to_7cm');
     u.searchParams.set('timezone',   'auto');
     const r = await fetch(u);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const hist = await r.json();
+    injectDailySoilTemp(hist);
     renderSummary(hist, startDate, safeEnd);
   } catch(e) {
     $('analysis-info').textContent = '⚠️ Fehler beim Laden: ' + e.message;
