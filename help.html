@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MoWetter Bedienungsanleitung</title>
+  <meta name="theme-color" content="#0f1117"/>
+  <link rel="manifest" href="./manifest.json?v=14"/>
+  <link rel="apple-touch-icon" href="./icon-192.png"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0f1117; --panel:#1a1d27; --border:#22263a; --text:#f1f5f9;
+      --muted:#8fa3b8; --teal:#00d4ff; --yellow:#facc15; --green:#34d399;
+      --input-bg:#23262e;
+    }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 17px; letter-spacing: 0; }
+    header a {
+      margin-left: auto;
+      color: var(--teal);
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      border-radius: 4px;
+      padding: 6px 11px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    main {
+      width: min(920px, 100%);
+      margin: 0 auto;
+      padding: 18px 16px 34px;
+      display: grid;
+      gap: 18px;
+    }
+    section {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    section:first-child { border-top: 0; padding-top: 0; }
+    h2 {
+      font-size: 15px;
+      color: var(--yellow);
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+    p { color: var(--muted); margin-bottom: 8px; }
+    ul {
+      display: grid;
+      gap: 7px;
+      padding-left: 18px;
+      color: var(--text);
+    }
+    li span { color: var(--muted); }
+    .note {
+      color: var(--green);
+      background: rgba(52,211,153,.08);
+      border: 1px solid rgba(52,211,153,.24);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MoWetter Bedienungsanleitung</h1>
+    <a href="./">Zur App</a>
+  </header>
+
+  <main>
+    <section>
+      <h2>Start</h2>
+      <ul>
+        <li>Standort suchen: <span>Ort ins Suchfeld eingeben und Vorschlag auswählen.</span></li>
+        <li>Aktualisieren: <span>holt aktuelle Serverdaten für den aktiven Ort.</span></li>
+        <li>Reload-Pfeil: <span>zieht frische Werte, leert App-Caches und lädt komplett neu.</span></li>
+        <li>Serverdaten-Zeile: <span>zeigt, ob Werte frisch oder aus dem Cache sind.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Kacheln und Diagramme</h2>
+      <ul>
+        <li>Kachel antippen oder anklicken: <span>öffnet ein Detaildiagramm.</span></li>
+        <li>Obere Kacheln: <span>zeigen im Popup Werte von jetzt bis 23:59, außer "letzte 24h".</span></li>
+        <li>Niederschlag: <span>meint Regen, Schnee oder Schauer als Gesamtniederschlag.</span></li>
+        <li>Diagramm öffnen: <span>mit dem Pfeil im Popup in ein eigenes Fenster wechseln.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Favoriten und Schläge</h2>
+      <ul>
+        <li>Favorit speichern: <span>merkt den aktuellen Ort.</span></li>
+        <li>Schlag hinzufügen: <span>Name, Breite und Länge eintragen oder GPS nutzen.</span></li>
+        <li>Geräte-ID: <span>Favoriten und Schläge werden ohne Login über deine lokale App-ID gespeichert.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Analyse</h2>
+      <ul>
+        <li>Zeitraum wählen: <span>Von/Bis setzen und analysieren.</span></li>
+        <li>Historische Daten: <span>kommen aus der lokalen Datenbank, wenn sie schon geladen wurden.</span></li>
+        <li>Export: <span>CSV oder Excel für den aktuellen Analysezeitraum herunterladen.</span></li>
+        <li>Soll/Ist: <span>vergleicht Archivwerte mit Modellwerten, wenn der Zeitraum passt.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Website, Desktop und Mobile</h2>
+      <ul>
+        <li>Website: <span>im Browser unter mowetter.mownet.de öffnen.</span></li>
+        <li>Desktop-App: <span>"App" drücken oder Install-Symbol in Chrome/Edge nutzen.</span></li>
+        <li>iPhone/iPad: <span>Teilen-Symbol in Safari, dann "Zum Home-Bildschirm".</span></li>
+        <li>Offline: <span>die App zeigt einen Hinweis und nutzt verfügbare zwischengespeicherte Inhalte.</span></li>
+      </ul>
+    </section>
+
+    <p class="note">Tipp: Wenn etwas alt wirkt, den runden Reload-Pfeil verwenden. Der lädt App und Serverwerte sauber neu.</p>
+  </main>
+</body>
+</html>

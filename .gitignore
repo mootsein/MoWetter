@@ -1,3 +1,12 @@
 .DS_Store
 ._*
 Recherche/
+__pycache__/
+*.py[cod]
+.env
+.pytest_cache/
+*.db
+*.sqlite*
+*.sql
+*.gz
+MoWetter_backup_*.tar.gz
