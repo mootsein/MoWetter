@@ -774,15 +774,36 @@ document.querySelectorAll('[data-popup]').forEach(tile => {
 
 // ── Soll / Ist Vergleich ─────────────────────────────────────────────────────
 async function loadSollIst() {
-  if (!window._lastAnalysisData || !window._lastAnalysisRange) return;
-  const { start, end } = window._lastAnalysisRange;
   const btn = $('soll-ist-btn');
   btn.textContent = '⏳'; btn.disabled = true;
   try {
-    const daysBack = Math.ceil((new Date(today + 'T12:00') - new Date(start + 'T12:00')) / 864e5) + 1;
-    const model = await fetchForecastFromDb(Math.min(daysBack, 92), 1);
+    // Archiv hat ~2 Tage Verzögerung — Ende auf verfügbare Archivdaten klippen
+    const archiveEnd = addDays(today, -2);
 
-    const arch = window._lastAnalysisData.daily;
+    // Zeitraum bestimmen: gewählten Bereich nutzen falls in der Vergangenheit,
+    // sonst Standard: letzte 14 Tage aus dem Archiv
+    let start, end;
+    if (window._lastAnalysisRange) {
+      end   = window._lastAnalysisRange.end   < archiveEnd ? window._lastAnalysisRange.end   : archiveEnd;
+      start = window._lastAnalysisRange.start <= end        ? window._lastAnalysisRange.start : addDays(end, -29);
+    } else {
+      end   = archiveEnd;
+      start = addDays(end, -29);
+    }
+
+    if (end < start) {
+      alert('Archivdaten noch nicht verfügbar (max. 2 Tage Verzögerung).');
+      return;
+    }
+
+    const daysBack = Math.ceil((new Date(today + 'T12:00') - new Date(start + 'T12:00')) / 864e5) + 1;
+    // Ist = Archiv (ERA5-Reanalyse = echte Messdaten), Soll = NWP-Modell-Hindcast
+    const [archiveResp, model] = await Promise.all([
+      fetchHistoricalFromDb(start, end),
+      fetchForecastFromDb(Math.min(daysBack, 92), 1),
+    ]);
+
+    const arch = archiveResp.daily;
     const labels = [];
     const iPrec=[], sPrec=[], iTmax=[], sTmax=[], iTmin=[], sTmin=[],
           iEt0=[],  sEt0=[],  iWind=[], sWind=[];
@@ -1740,9 +1761,7 @@ function renderSummary(srcData, startDate, endDate) {
   window._lastAnalysisRange = { start: startDate, end: endDate };
   $('export-csv-btn').disabled  = false;
   $('export-xlsx-btn').disabled = false;
-  // Soll/Ist nur für vergangene Zeiträume innerhalb 92 Tage
-  const daysBackSI = Math.ceil((new Date(today + 'T12:00') - new Date(startDate + 'T12:00')) / 864e5) + 1;
-  $('soll-ist-btn').disabled = !(endDate < today && daysBackSI <= 92);
+  $('soll-ist-btn').disabled = false;
 
   injectDailySoilTemp(srcData);
   const s = calcSummary(srcData, startDate, endDate);

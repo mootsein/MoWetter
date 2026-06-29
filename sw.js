@@ -4,11 +4,11 @@
 //   Statische Assets (Chart.js, manifest, icon) → Cache-first
 //   Open-Meteo API → immer live, kein Cache
 
-const CACHE = 'wetterboard-v15';
+const CACHE = 'wetterboard-v18';
 const STATIC = [
-  './manifest.json?v=15',
-  './assets/css/app.css?v=15',
-  './assets/js/app.js?v=15',
+  './manifest.json?v=18',
+  './assets/css/app.css?v=18',
+  './assets/js/app.js?v=18',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
